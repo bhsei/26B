@@ -82,7 +82,7 @@ full dependency set used during verification. Keep both current when upgrading.
 | Veronika | API, database, migrations, backend tests; project coordination |
 | Thibaut | Cboard fork, selected-symbol mapping, photo input, suggestions and speech UI |
 | Jiahui | Real SentenceProvider implementation, prompts and evaluation |
-| Fourth member | Containerization, hosting, configuration, CI/deployment and operations |
+| Abid | Containerization, hosting, configuration, CI/deployment and operations |
 
 ## Project map
 
