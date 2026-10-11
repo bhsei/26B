@@ -4,7 +4,6 @@ Team B — The Outliers · Software Engineering, Beihang University
 
 A runnable foundation for an English context-aware AAC project: FastAPI, persistent
 data, a replaceable sentence provider, and a small browser page for integration testing.
-**Start on Windows: [START_HERE_RU.md](START_HERE_RU.md).**
 
 ## What works
 
