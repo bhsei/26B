@@ -1,7 +1,7 @@
 # Software Requirements Specification
 ## For Context-aware AAC Board (B - The Outliers)
 
-Version 0.1  
+Version 0.2  
 Prepared by Veronika Surianinova, Jiahui Chen, Thibaut de Robien and Abid (Team B - The Outliers)  
 Software Engineering course, Beihang University  
 2026-10-13
@@ -37,10 +37,11 @@ Software Engineering course, Beihang University
 | Name | Date | Reason For Changes | Version |
 |------|------|--------------------|---------|
 | Team B - The Outliers | 2026-10-13 | Initial draft based on the project proposal slides and the backend starter (API v0.1) | 0.1 |
+| Team B - The Outliers | 2026-10-13 | Product redefined as a new standalone application; Cboard is only a source of inspiration, not a base product | 0.2 |
 
 ## 1. Introduction
 
-This SRS describes the Context-aware AAC Board: an extension of the open-source Cboard communication board that suggests complete English sentences from the user's selected symbols or text and an optional scene photo. Section 1.1 gives the purpose, 1.2 the scope, and 1.5 the document organization.
+This SRS describes the Context-aware AAC Board: a new, standalone web-based AAC communication board, inspired by the open-source Cboard project, that suggests complete English sentences from the user's selected symbols or text and an optional scene photo. Section 1.1 gives the purpose, 1.2 the scope, and 1.5 the document organization.
 
 ### 1.1 Document Purpose
 
@@ -50,13 +51,13 @@ This SRS defines **what** the Context-aware AAC Board must do, not how it is bui
 
 **Product:** Context-aware AAC Board, release 0.1 (backend starter, API v0.1).
 
-The product extends Cboard with AI. The user adds context (a scene photo, plus symbols or text that express what they want to say). The system then suggests complete English sentences. The user accepts one and confirms before the app speaks it, or rejects the options to get new ones. Example: at a café, the user selects "water" and gets "Could I have a glass of water, please?". The goal is to reduce the effort of composing everyday requests. This is a benefit the team plans to evaluate. It is not an achieved result.
+The product is a new AAC web application with AI-based sentence suggestions. It is **not** an extension or fork of Cboard; Cboard is only a source of inspiration. The user adds context (a scene photo, plus symbols or text that express what they want to say). The system then suggests complete English sentences. The user accepts one and confirms before the app speaks it, or rejects the options to get new ones. Example: at a café, the user selects "water" and gets "Could I have a glass of water, please?". The goal is to reduce the effort of composing everyday requests. This is a benefit the team plans to evaluate. It is not an achieved result.
 
 | In scope | Out of scope (or not yet decided) |
 |----------|-----------------------------------|
 | Working web application in English | Languages other than English |
 | Scene-based sentence suggestions (photo + symbols/text) | Mobile packaging (optional extension, depends on time) |
-| User confirmation before speech; reject and regenerate | Recreating Cboard accounts or boards in the backend |
+| User confirmation before speech; reject and regenerate | Extending, forking or copying Cboard |
 | Persisting requests, suggestions and feedback | Semantic caching (to be assessed) |
 | First scenario: café; later more everyday situations | Production public service for untrusted users (before authentication exists) |
 
@@ -66,7 +67,7 @@ The product extends Cboard with AI. The user adds context (a scene photo, plus s
 |------|------------|
 | AAC | Augmentative and Alternative Communication: methods that support or replace speech for people with speech or language impairments |
 | API | Application Programming Interface: a set of definitions and protocols for building and integrating application software |
-| Cboard | Open-source AAC communication board web application (React/JavaScript) that this product extends |
+| Cboard | Open-source AAC communication board web application, used only as a source of inspiration. This product does not extend, fork or copy it |
 | CI | Continuous Integration (here: GitHub Actions checks) |
 | CORS | Cross-Origin Resource Sharing: browser rule that controls which web origins may call the API |
 | Feedback | The user's current decision on a generation: `accepted` (with a suggestion) or `rejected` |
@@ -78,7 +79,7 @@ The product extends Cboard with AI. The user adds context (a scene photo, plus s
 | Sentence provider | Replaceable backend component that generates sentence suggestions (interface `SentenceProvider`) |
 | SRS | Software Requirements Specification: a document that describes the intended purpose, requirements and nature of a software product |
 | Suggestion | A complete English sentence proposed to the user |
-| Symbol | A Cboard tile selected by the user, sent as its English label (e.g. "water") |
+| Symbol | A tile on the product's symbol board selected by the user, sent as its English label (e.g. "water") |
 | TBD | To Be Determined: a value the team has not decided yet |
 | UI | User Interface: the visual part of a computer application through which a user interacts with the software |
 | VLM | Vision-Language Model: a model that takes images and text as input |
@@ -92,7 +93,7 @@ The product extends Cboard with AI. The user adds context (a scene photo, plus s
 | Team next steps | Team B | v0.1 | `docs/TEAM_NEXT_STEPS.md` | Informative |
 | Verification of the starter | Team B | v0.1 | `docs/VERIFICATION.md` | Informative |
 | Repository README | Team B | v0.1 | `README.md` | Informative |
-| Cboard source code | cboard-org | master | https://github.com/cboard-org/cboard | Normative (base product) |
+| Cboard source code | cboard-org | master | https://github.com/cboard-org/cboard | Informative (inspiration only) |
 | SRS template (IEEE-based) | ovikrai | master | https://github.com/ovikrai/SRS-Template-IEEE/blob/master/srs-template.md | Normative (document format) |
 
 ### 1.5 Document Overview
@@ -103,10 +104,10 @@ Section 2 gives the context: perspective, functions, constraints, users, assumpt
 
 ### 2.1 Product Perspective
 
-This is a new extension of an existing product, **Cboard** (open-source AAC board, React/JavaScript). It is a non-profit course project. The team's Cboard fork (frontend) calls a new Python backend over HTTP. The backend validates input, calls a replaceable sentence provider (AI), and stores requests, suggestions and feedback in a database.
+This is a new, standalone product. It is not an extension or fork of an existing product; the open-source AAC board **Cboard** is only a source of inspiration. It is a non-profit course project. The team's own web frontend calls a new Python backend over HTTP. The backend validates input, calls a replaceable sentence provider (AI), and stores requests, suggestions and feedback in a database.
 
 ```text
- User ──► Cboard fork (React, browser) ──HTTP/JSON──► Backend API (FastAPI)
+ User ──► Frontend (React, browser) ─────HTTP/JSON──► Backend API (FastAPI)
               │                                         │        │
               ▼                                         ▼        ▼
      Browser/system speech                     Sentence provider   Database
@@ -127,7 +128,7 @@ Ownership: frontend: Thibaut; backend and data: Veronika; AI: Jiahui; deployment
 
 ### 2.3 Product Constraints
 
-- **C-01** The product must extend Cboard (React/JavaScript frontend). It must not copy Cboard code into the backend repository.
+- **C-01** The product must be a new, standalone web application with its own frontend (proposed technology: React/JavaScript). It must not extend, fork or copy code or assets from Cboard; Cboard is only a source of inspiration.
 - **C-02** The backend must use Python with FastAPI.
 - **C-03** The user interface and all generated sentences must be in English.
 - **C-04** The AI part must be accessed only through the replaceable sentence-provider interface. The model choice (hosted VLM/LLM API, or local inference with PyTorch) is still open.
@@ -141,7 +142,7 @@ Ownership: frontend: Thibaut; backend and data: Veronika; AI: Jiahui; deployment
 
 | User class | Description | Expertise | Main goals |
 |------------|-------------|-----------|------------|
-| AAC user | Person with a speech or language impairment who uses the board to communicate everyday requests | Uses Cboard symbols; may have difficulty composing full sentences | Say what they mean with less effort; stay in control of what is spoken |
+| AAC user | Person with a speech or language impairment who uses the board to communicate everyday requests | Can select symbols on a communication board; may have difficulty composing full sentences | Say what they mean with less effort; stay in control of what is spoken |
 | Developer / evaluator (team) | Team members who run the system locally and evaluate sentence quality and response time | Software engineering students | Integrate, test and evaluate with synthetic inputs |
 | Operator (team) | Team member who configures, deploys and monitors the backend | Docker, configuration, CI | Start the system reproducibly; check health |
 
@@ -151,7 +152,7 @@ Accessibility: the user may need large, simple choices and must never hear a sen
 
 | # | Assumption / dependency | Impact if false |
 |---|-------------------------|-----------------|
-| A-1 | Cboard can be run locally and extended by the team | Frontend integration (REQ-FUNC-010) is delayed or must use the demo page |
+| A-1 | The team can build its own web frontend in the available time | Frontend integration (REQ-FUNC-010) is delayed or must use the demo page |
 | A-2 | The device's browser/OS provides an English speech voice | Speech is unavailable; the choice is still saved (REQ-FUNC-007) |
 | A-3 | A suitable VLM/LLM (hosted API or local) is available within budget | No real sentence generation; only the mock provider works |
 | A-4 | A photo alone cannot reliably reveal intent, so the user's symbols/text are always needed | If ignored, the system could invent intentions (see REQ-ML-003) |
@@ -165,8 +166,8 @@ Accessibility: the user may need large, simple choices and must never hear a sen
 | REQ-FUNC-001 … 006, 009; REQ-INT-004, 005; REQ-SEC-001, 002, 004; REQ-REL-001 … 003; REQ-AVAIL-001; REQ-PERF-001 | Backend API + database | Veronika | v0.1 (implemented) |
 | REQ-INST-001; REQ-MAINT-001; REQ-PORT-001 | Backend build and configuration | Veronika | v0.1 (PostgreSQL check pending) |
 | REQ-BUILD-001 | CI (GitHub Actions) | Abid | v0.1 (implemented) |
-| REQ-FUNC-007, 008; REQ-INT-001 … 003 | Demo page (v0.1), then Cboard fork | Thibaut | v0.1 demo implemented; Cboard in Increment 1 |
-| REQ-FUNC-010; REQ-INT-006; REQ-SEC-004 (display); REQ-POC-001 | Cboard fork + backend | Thibaut, Veronika | Increment 1: café scenario |
+| REQ-FUNC-007, 008; REQ-INT-001 … 003 | Demo page (v0.1), then team web frontend | Thibaut | v0.1 demo implemented; web frontend in Increment 1 |
+| REQ-FUNC-010; REQ-INT-006; REQ-SEC-004 (display); REQ-POC-001 | Web frontend + backend | Thibaut, Veronika | Increment 1: café scenario |
 | REQ-ML-001 … 006 | Sentence provider (AI) | Jiahui | Increment 1 |
 | REQ-DIST-001; REQ-SEC-003, 005, 006; REQ-OBS-001 | Deployment and operations | Abid | Before any public trial |
 | REQ-SEC-007; REQ-COMP-001, 002; REQ-CM-001 | Project-wide | All | Before real-user trials / ongoing |
@@ -187,7 +188,7 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - Rationale: Matches the proposed flow "Add context → Generate → Choose & speak" (C-03).
 - Acceptance Criteria: All three steps and the three action buttons are visible and usable; "Confirm and speak" is disabled until a suggestion is selected.
 - Verification Method: Demonstration
-- More Information: Status: Implemented in demo page (`app/static/`); Planned in Cboard fork. Visual design of the Cboard UI: TBD. Accessibility standard (e.g. WCAG level): TBD.
+- More Information: Status: Implemented in demo page (`app/static/`); Planned in the team's web frontend. Visual design of the frontend UI: TBD. Accessibility standard (e.g. WCAG level): TBD.
 
 - ID: REQ-INT-002
 - Title: Status, notices and errors are shown, never spoken
@@ -212,7 +213,7 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - ID: REQ-INT-004
 - Title: Backend REST API v0.1
 - Statement: The backend shall provide these HTTP endpoints, as defined in `docs/API.md`: `POST /api/suggestions` (JSON), `POST /api/suggestions/image` (multipart: `payload` JSON + `image`), `PUT /api/requests/{request_id}/feedback`, `GET /health`, `GET /ready`, and an OpenAPI description at `/openapi.json`.
-- Rationale: Contract between the Cboard fork and the backend.
+- Rationale: Contract between the web frontend and the backend.
 - Acceptance Criteria: Endpoints return the documented status codes (201, 200, 404, 409, 413, 415, 422, 502, 503) and a `detail` field on errors.
 - Verification Method: Test
 - More Information: Status: Implemented. There is no authentication in v0.1 (see REQ-SEC-005). Cross-origin access is limited to the exact origins in `CORS_ORIGINS`; CORS is not an authentication mechanism.
@@ -226,10 +227,10 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - More Information: Status: Implemented (mock only). The provider is selected with `AI_PROVIDER`; unsupported values fail configuration validation.
 
 - ID: REQ-INT-006
-- Title: Cboard symbol mapping
-- Statement: The Cboard fork shall send the English labels of the selected Cboard tiles as `selected_symbols`, and shall call the API from a configurable base URL.
-- Rationale: First integration step without recreating Cboard boards or accounts in the backend.
-- Acceptance Criteria: Selecting the "water" tile in Cboard sends `["water"]` and shows the returned suggestions.
+- Title: Symbol board mapping
+- Statement: The web frontend shall send the English labels of the symbol tiles selected by the user as `selected_symbols`, and shall call the API from a configurable base URL.
+- Rationale: Keeps the API independent of how the frontend stores its symbols.
+- Acceptance Criteria: Selecting the "water" tile in the web frontend sends `["water"]` and shows the returned suggestions.
 - Verification Method: Demonstration
 - More Information: Status: Planned (Thibaut).
 
@@ -289,7 +290,7 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - Rationale: The user must stay in control of what is said in their name.
 - Acceptance Criteria: Showing suggestions produces no audio; "Confirm and speak" saves the acceptance and speaks the selected text; "Stop speaking" stops it.
 - Verification Method: Demonstration
-- More Information: Status: Implemented in demo page; Planned in Cboard fork.
+- More Information: Status: Implemented in demo page; Planned in the team's web frontend.
 
 - ID: REQ-FUNC-008
 - Title: Clear stale suggestions
@@ -297,7 +298,7 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - Rationale: Prevents accepting or speaking a sentence generated for a different intention.
 - Acceptance Criteria: After an input change, the old suggestions are gone and "Confirm and speak" is disabled.
 - Verification Method: Demonstration
-- More Information: Status: Implemented in demo page; Planned in Cboard fork.
+- More Information: Status: Implemented in demo page; Planned in the team's web frontend.
 
 - ID: REQ-FUNC-009
 - Title: Persist requests, suggestions and feedback
@@ -308,9 +309,9 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - More Information: Status: Implemented. Raw photos are not stored (REQ-SEC-001).
 
 - ID: REQ-FUNC-010
-- Title: End-to-end use inside Cboard
-- Statement: The Cboard fork shall perform REQ-FUNC-003 to REQ-FUNC-008 against the backend.
-- Rationale: The product is an extension of Cboard (C-01).
+- Title: End-to-end use in the web frontend
+- Statement: The team's web frontend shall perform REQ-FUNC-003 to REQ-FUNC-008 against the backend.
+- Rationale: The demo page only tests the backend; the product needs its own user-facing frontend (C-01).
 - Acceptance Criteria: See REQ-POC-001.
 - Verification Method: Demonstration
 - More Information: Status: Planned (Increment 1).
@@ -367,7 +368,7 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 - Rationale: Prevents malformed input and script injection through generated text.
 - Acceptance Criteria: Invalid input returns 422/413/415; text containing HTML is shown literally.
 - Verification Method: Test
-- More Information: Status: Backend validation Implemented; Cboard rendering Planned (React's normal escaped rendering).
+- More Information: Status: Backend validation Implemented; Frontend rendering Planned (React's normal escaped rendering).
 
 - ID: REQ-SEC-005
 - Title: Authentication and data ownership
@@ -443,9 +444,9 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 
 - ID: REQ-COMP-001
 - Title: Third-party licenses
-- Statement: The team shall respect the licenses of Cboard and of all dependencies, and shall select a license for this repository.
-- Rationale: The product extends open-source software; no repository license has been selected yet.
-- Acceptance Criteria: A license file exists and is compatible with Cboard's license.
+- Statement: The team shall respect the licenses of all dependencies, shall not copy Cboard source code or symbol assets, and shall select a license for this repository.
+- Rationale: Cboard is only a source of inspiration; no repository license has been selected yet.
+- Acceptance Criteria: A license file exists; inspection finds no Cboard code or assets in the repository.
 - Verification Method: Inspection
 - More Information: Status: Planned. Repository license: TBD.
 
@@ -501,7 +502,7 @@ Each requirement uses the template fields. "Status" in More Information is **Imp
 
 #### 3.5.5 Reusability
 
-The product reuses Cboard (boards, symbols, frontend) and does not recreate its accounts or boards. The backend API and provider interface are generic: they accept symbol labels and text, not Cboard-specific IDs. No further reuse requirements have been defined.
+The product does not reuse Cboard code, boards or assets; Cboard is only a source of inspiration. The backend API and provider interface are generic: they accept symbol labels and text. No further reuse requirements have been defined.
 
 #### 3.5.6 Portability
 
@@ -521,7 +522,7 @@ Non-profit course project. The choice between a hosted model API (cost per call)
 
 Milestone dates: TBD. Planned order of increments:
 
-1. Set up Cboard locally.
+1. Build the team's web frontend (symbol board).
 2. Connect one complete café scenario (REQ-POC-001).
 3. Evaluate sentence quality and response time.
 4. Expand to more everyday situations (REQ-FUNC-011).
@@ -531,9 +532,9 @@ Milestone dates: TBD. Planned order of increments:
 
 - ID: REQ-POC-001
 - Title: Café end-to-end scenario
-- Statement: In the Cboard fork, the user shall be able to select the "water" tile, see suggestions, reject and regenerate, select one and explicitly speak it, and the feedback shall persist after a backend restart.
+- Statement: In the team's web frontend, the user shall be able to select the "water" tile, see suggestions, reject and regenerate, select one and explicitly speak it, and the feedback shall persist after a backend restart.
 - Rationale: First shared milestone; validates the integration before more situations are added.
-- Acceptance Criteria: The full scenario works in Cboard and keeps working while the mock is replaced by the real provider.
+- Acceptance Criteria: The full scenario works in the web frontend and keeps working while the mock is replaced by the real provider.
 - Verification Method: Demonstration
 - More Information: Status: Planned (Increment 1). Timebox: TBD.
 
@@ -640,7 +641,7 @@ Automated tests are in `tests/test_api.py` and run in CI. "Passed" means passed 
 | REQ-SEC-001 | inspection | `app/images.py`, `app/models.py` | WIP | |
 | REQ-SEC-002 | test | `test_provider_failure_is_safe` | Passed | `docs/VERIFICATION.md` |
 | REQ-SEC-003 | inspection | `.gitignore`, `.env.example` | WIP | |
-| REQ-SEC-004 | test | `test_invalid_inputs`, `test_invalid_photo_and_payload` | Passed (backend) | Cboard rendering not started |
+| REQ-SEC-004 | test | `test_invalid_inputs`, `test_invalid_photo_and_payload` | Passed (backend) | Frontend rendering not started |
 | REQ-SEC-005 | test | TBD | Not started | |
 | REQ-SEC-006 | test | TBD | Not started | |
 | REQ-SEC-007 | inspection | TBD policy document | Not started | |
