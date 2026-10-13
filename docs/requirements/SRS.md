@@ -520,7 +520,15 @@ Non-profit course project. The choice between a hosted model API (cost per call)
 
 #### 3.5.8 Deadline
 
-Milestone dates: TBD. Planned order of increments:
+Course milestones (semester starting September 2026, course week numbers):
+
+| Week | Deliverable |
+|------|-------------|
+| 7 | SRS: Software Requirements Specification |
+| 11 | Software Design / Architecture |
+| 16 | Software Product Launch & Investment Pitch |
+
+Planned order of increments:
 
 1. Build the team's web frontend (symbol board).
 2. Connect one complete café scenario (REQ-POC-001).
@@ -683,6 +691,6 @@ Automated tests are in `tests/test_api.py` and run in CI. "Passed" means passed 
 | 7 | Accessibility standard for the UI | REQ-INT-001 |
 | 8 | Evaluation set and quality thresholds | REQ-ML-001, REQ-FUNC-011 |
 | 9 | Repository license | REQ-COMP-001 |
-| 10 | Milestone dates | 3.5.8 |
+| 10 | Dates of the individual increments within the course milestones | 3.5.8 |
 
 **C. Data model (v0.1).** See `app/models.py`: `generation_requests` (inputs, photo flag, provider, latency, parent link), `suggestions` (text, position), `feedback` (one current decision per request).
