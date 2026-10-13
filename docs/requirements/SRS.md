@@ -106,13 +106,13 @@ Section 2 gives the context: perspective, functions, constraints, users, assumpt
 
 This is a new, standalone product. It is not an extension or fork of an existing product; the open-source AAC board **Cboard** is only a source of inspiration. It is a non-profit course project. The team's own web frontend calls a new Python backend over HTTP. The backend validates input, calls a replaceable sentence provider (AI), and stores requests, suggestions and feedback in a database.
 
-```text
- User ──► Frontend (React, browser) ─────HTTP/JSON──► Backend API (FastAPI)
-              │                                         │        │
-              ▼                                         ▼        ▼
-     Browser/system speech                     Sentence provider   Database
-     (English voice)                           (mock now; VLM/LLM  (SQLite now;
-                                               API or local later) PostgreSQL option)
+```mermaid
+flowchart LR
+    U([User]) --> FE["Frontend<br/>(React, browser)"]
+    FE -- "HTTP/JSON" --> BE["Backend API<br/>(FastAPI)"]
+    FE --> TTS["Browser/system speech<br/>(English voice)"]
+    BE --> SP["Sentence provider<br/>(mock now; VLM/LLM<br/>API or local later)"]
+    BE --> DB[("Database<br/>(SQLite now;<br/>PostgreSQL option)")]
 ```
 
 Ownership: frontend: Thibaut; backend and data: Veronika; AI: Jiahui; deployment and operations: Abid. There are no SLAs or support model; the product is a course prototype.
