@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
 from app.config import Settings
+from app.errors import AppError
 from app.images import prepare_image
 from app.providers.base import SentenceProvider
 from app.schemas import GenerationOutput, SuggestionInput
@@ -29,9 +30,9 @@ def create_suggestions_router(
             parsed = SuggestionInput.model_validate_json(payload)
         except ValidationError:
             image.file.close()
-            raise HTTPException(422, "Invalid payload JSON. See SuggestionInput schema.") from None
-        return generate(
-            parsed, prepare_image(image, settings.max_image_bytes), sessions, provider
-        )
+            raise AppError(
+                422, "Invalid payload JSON. See SuggestionInput schema.", "INVALID_PAYLOAD"
+            ) from None
+        return generate(parsed, prepare_image(image, settings.max_image_bytes), sessions, provider)
 
     return router

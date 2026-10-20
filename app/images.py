@@ -1,8 +1,10 @@
 import warnings
 from io import BytesIO
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
+
+from app.errors import AppError
 
 
 def prepare_image(upload: UploadFile, max_bytes: int) -> bytes:
@@ -10,14 +12,18 @@ def prepare_image(upload: UploadFile, max_bytes: int) -> bytes:
     try:
         data = upload.file.read(max_bytes + 1)
         if len(data) > max_bytes:
-            raise HTTPException(413, "Photo exceeds the 5 MiB limit.")
+            raise AppError(413, "Photo exceeds the 5 MiB limit.", "IMAGE_TOO_LARGE")
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(data)) as original:
                 if original.format not in {"JPEG", "PNG", "WEBP"}:
-                    raise HTTPException(415, "Use a JPEG, PNG or WebP photo.")
+                    raise AppError(
+                        415, "Use a JPEG, PNG or WebP photo.", "UNSUPPORTED_IMAGE_FORMAT"
+                    )
                 if original.width * original.height > 20_000_000:
-                    raise HTTPException(413, "Photo exceeds 20 megapixels.")
+                    raise AppError(
+                        413, "Photo exceeds 20 megapixels.", "IMAGE_DIMENSIONS_TOO_LARGE"
+                    )
                 original.load()
                 processed = ImageOps.exif_transpose(original).convert("RGB")
                 processed.thumbnail((1024, 1024))
@@ -31,6 +37,6 @@ def prepare_image(upload: UploadFile, max_bytes: int) -> bytes:
         Image.DecompressionBombError,
         Image.DecompressionBombWarning,
     ):
-        raise HTTPException(415, "Invalid or unsupported image.") from None
+        raise AppError(415, "Invalid or unsupported image.", "INVALID_IMAGE") from None
     finally:
         upload.file.close()

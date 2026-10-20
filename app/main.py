@@ -11,6 +11,7 @@ from app.api.health import create_health_router
 from app.api.suggestions import create_suggestions_router
 from app.config import Settings
 from app.database import make_database
+from app.errors import register_error_handlers
 from app.providers.base import SentenceProvider
 from app.providers.mock import MockProvider
 
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None, provider: SentenceProvider | No
         engine.dispose()
 
     app = FastAPI(title="The Outliers AAC API", version="0.1.0", lifespan=lifespan)
+    register_error_handlers(app)
     app.state.engine = engine
     app.state.sessions = sessions
     app.add_middleware(
