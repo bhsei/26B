@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.feedback import create_feedback_router
 from app.api.health import create_health_router
+from app.api.reuse import create_reuse_router
 from app.api.suggestions import create_suggestions_router
 from app.config import Settings
 from app.database import make_database
@@ -47,6 +48,7 @@ def create_app(settings: Settings | None = None, provider: SentenceProvider | No
     app.include_router(create_health_router(sessions, provider))
     app.include_router(create_suggestions_router(settings, sessions, provider))
     app.include_router(create_feedback_router(sessions))
+    app.include_router(create_reuse_router(sessions))
 
     return app
 

@@ -44,7 +44,9 @@ def test_validation_error_keeps_detail_list(client, body):
         (b"not a photo", 415, "INVALID_IMAGE"),
         (b"x" * (5 * 1024 * 1024 + 1), 413, "IMAGE_TOO_LARGE"),
     ],
+    ids=["invalid-image", "oversized-image"],
 )
+
 def test_image_error_codes(client, data, expected_status, expected_code):
     response = client.post(
         "/api/suggestions/image",
