@@ -4,9 +4,9 @@ The backend stores generation requests, sentence suggestions, and the user's
 current feedback. These records link each suggested sentence to the inputs that
 produced it and identify the sentence the user accepted.
 
-The current implementation supports persistence, feedback updates, and
-regeneration chains. Retrieval for reuse is planned; its initial rules are
-specified below.
+The current implementation supports persistence, feedback updates, regeneration
+chains, and exact retrieval of previously accepted sentences. The retrieval
+endpoint is documented in [REUSE.md](REUSE.md).
 
 ## Implementation
 
@@ -17,6 +17,9 @@ specified below.
 | `migrations/` | Alembic schema migrations. |
 | `app/services/suggestions.py` | Generation records, suggestion storage, and regeneration checks. |
 | `app/services/feedback.py` | Feedback validation and updates. |
+| `app/services/reuse.py` | Retrieval of currently accepted sentences with matching inputs. |
+| `app/api/reuse.py` | The `POST /api/suggestions/reuse` endpoint. |
+| `app/reuse_schemas.py` | Retrieval input and output schemas. |
 
 Local development uses SQLite by default. `DATABASE_URL` selects the database
 connection. PostgreSQL integration requires a separate verification step.
@@ -142,23 +145,23 @@ Acceptance applies only to the selected suggestion, not to every suggestion
 produced for that request. A suggestion without feedback is not considered
 accepted.
 
-## Planned retrieval for reuse
+## Retrieval for reuse
 
-This section defines the proposed first version of retrieval. It does not imply
-that a reuse service or endpoint is already implemented.
+`POST /api/suggestions/reuse` returns historical candidates without generating
+text or writing records. See [REUSE.md](REUSE.md) for request and response examples.
 
 ### Eligibility
 
 Only currently accepted suggestions are eligible. Suggestions with rejected or
 missing feedback are excluded.
 
-The initial search supports text and symbol inputs without a photo. Source
-requests with `image_supplied = true` are excluded because their original visual
+The search supports text and symbol inputs without a photo. The client must not
+use it when the current interaction depends on a photo. Source requests with `image_supplied = true` are excluded because their original visual
 context cannot be compared.
 
 ### Matching rules
 
-| Input | Proposed rule |
+| Input | Rule |
 | --- | --- |
 | `language` | Exact match. |
 | `scene_hint` | Exact match after trimming leading and trailing whitespace on both values. |
@@ -173,7 +176,8 @@ symbol in two requests is insufficient when their other inputs differ.
 
 1. Order candidates by `feedback.updated_at`, newest first, then by suggestion ID
    ascending to resolve ties.
-2. Remove duplicate sentence texts after trimming leading and trailing whitespace.
+2. Trim sentence texts, skip blank or overlong legacy sentences, and remove
+   duplicate sentence texts. Valid sentences contain at most 300 characters.
 3. Return up to three unique sentences, continuing through candidates as needed.
 4. Return an empty list when there are no matches.
 
@@ -183,7 +187,7 @@ changes should follow demonstrated query requirements.
 
 ### Source references and new interactions
 
-Each retrieval result should include its sentence text, `source_request_id`, and
+Each retrieval result includes its sentence text, `source_request_id`, and
 `source_suggestion_id`. These IDs identify historical records, not a newly
 created interaction.
 
