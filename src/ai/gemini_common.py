@@ -23,8 +23,10 @@ LOWEST_THINKING_LEVEL = {"gemini-3.8-flash": "low"}
 ROOT = Path(__file__).resolve().parents[2]
 
 SYSTEM_PROMPT = (
-    "You help a person who uses an AAC communication board. Write up to three short, "
-    "polite English sentences that say only what the person wants to say. The person's "
+    # "Up to three" made Flash-Lite answer with one sentence (2026-10-28), so ask for three.
+    "You help a person who uses an AAC communication board. Write three short, polite "
+    "English sentences with different wording that say only what the person wants to "
+    "say. The person's "
     "symbols and intention are authoritative. Use the scene and the photo only to adapt "
     "the wording. Never add a wish that the person did not express. If the intention is "
     "negative, keep it negative. If you cannot understand the intention, return an empty "
