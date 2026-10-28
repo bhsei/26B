@@ -155,13 +155,19 @@ up to 15 requests per model (35 for Gemma).
 | `gemini-3-flash-preview` | 429 per minute | 5 per minute | `gemini-3-flash` |
 | `gemma-4-26b-a4b-it` | 15 OK, median 1.1 s, then 429 | 30 per minute | `gemma-4-26b` |
 | `gemma-4-31b-it` | HTTP 500 "Internal error" | — | — |
-| `gemini-3.1-pro-preview`, `gemini-pro-latest`, `gemini-omni-flash-preview`, `gemini-omni-1.1-flash`, `gemini-4-argon` | 429 on the first request, retry in about 22.8 h, no limit value | no free quota | `gemini-3.1-pro`, `gemini-omni-1.1-flash`, `gemini-4-argon` |
+| `gemini-3.1-pro-preview`, `gemini-pro-latest`, `gemini-omni-flash-preview`, `gemini-omni-1.1-flash`, `gemini-4-argon` | 429 on the first request, retry in about 22.8 h, no limit value | no free quota (inferred) | `gemini-3.1-pro`, `gemini-omni-1.1-flash`, `gemini-4-argon` |
 | `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro` | 404 "no longer available to new users" | — | — |
 
 - Several names share one quota: 3.5 Flash with 3.6 Flash, and 3.7 Flash and
   `gemini-flash-latest` with 3.8 Flash. A chain that lists both gains nothing.
-- No Flash-Lite model returned a 429, so their limits are above 15 per minute. Their
-  daily limit is still unknown; finding it needs a paced run over the day.
+- No Flash-Lite model returned a 429. Calls are sequential, so the lower bound depends
+  on speed: 3.5 Flash-Lite and `flash-lite-latest` did 15 calls in about 15 s (at least
+  15 per minute); 3.1 Flash-Lite needed 82 s (at least 11 in one minute) and its preview
+  73 s (at least 14). Their daily limits are still unknown; finding them needs a paced
+  run over the day.
+- `limit=` is the `quotaValue` in Google's 429 answer. For the Pro, Omni and
+  `gemini-4-argon` models it was empty, so "no free quota" is inferred from the block on
+  the first call.
 - `gemini-3.7-flash` rejects `thinkingLevel: minimal`; the survey resends without it.
 - By mistake a second copy of the survey ran at the same time, so request counts and
   latencies are higher than one run alone. The limits come from Google's own 429
