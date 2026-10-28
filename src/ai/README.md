@@ -133,10 +133,94 @@ run uses `rpm × minutes`. Do not run checks just before a demo.
 20 requests per day is too few for the evaluation set and demos. Limits are per model,
 so Flash-Lite models have their own quota; check them in AI Studio before testing.
 
+## Backup models and reuse (standalone)
+
+`suggest.py` runs one request the way the backend should later: reuse first, then
+the providers in order. It is not connected to the backend yet; that waits for the
+refactor branch to be merged.
+
+```bash
+python -m src.ai.suggest --symbols water --scene "A café" --photo
+```
+
+```bash
+python -m src.ai.suggest --symbols coffee --intention "I do not want sugar" --accept 1
+```
+
+```bash
+python -m src.ai.suggest --status
+```
+
+`--status` makes no calls. It shows each provider's count for today against the
+local cap and any cooldown.
+
+### Provider order
+
+Default: `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-3.5-flash` →
+`gemini-3.8-flash` → `ollama:qwen3-vl:2b`. Change it with `--order` or
+`AI_PROVIDER_ORDER` in `.env`, as a comma list of `kind:model` (`gemini`, `ollama`,
+`zai`).
+
+- Free quotas count per model, so each Gemini model adds its own daily requests on
+  the same key. The Flash-Lite limits were not measured (only one or two calls each
+  on 2026-10-28); check them in AI Studio.
+- A local cap stops each hosted model at 16 calls a day (80 % of the 20 measured for
+  3.5 Flash). Change it with `--daily-cap`. Failed calls count too.
+- A 429 is not retried. The model cools down for the retry delay in the answer, or
+  until the next quota day (midnight Pacific time) for a daily quota, and the next
+  provider is used at once.
+- Three failures in a row (timeout, 5xx, no connection) pause a provider for 5
+  minutes. No new attempt starts after `--budget` seconds (default 240).
+- If every provider fails the script says so. It never falls back to the mock
+  templates.
+- `zai:glm-4.6v-flash` needs `ZAI_API_KEY` in `.env`. That adapter is tested offline
+  only (no key yet).
+- Ollama: install it, then `ollama pull qwen3-vl:2b`. The first call loads the model
+  and can take minutes on this laptop's CPU. Close other apps first (about 3 GB free
+  RAM needed). Not measured yet.
+
+Counts and cooldowns are kept in `ai_data/usage.json`, so separate runs share them.
+
+### Reuse and examples (retrieval)
+
+Accepted sentences go to `ai_data/accepted.jsonl` (`--accept N`, or the prompt after
+the suggestions). Before calling a model the script scores the request against them:
+
+| Field | Weight | Comparison |
+| --- | --- | --- |
+| Symbols | 0.5 | Same set, any order or case |
+| Words of symbols and intention | 0.3 | Word overlap, common words such as "please" ignored |
+| Scene hint | 0.2 | Word overlap |
+
+- Score 0.9 or more: the stored sentences are shown with **no AI call**. Off when a
+  photo is attached, because the photo may show another place (same rule as the
+  backend lookup).
+- Score 0.4 or more: up to three sentences are sent to the model as `examples`, so it
+  can follow the person's wording. They cost about 15–40 prompt tokens and no extra
+  request.
+- A negated wish never matches a plain one ("no sugar" vs "sugar").
+
+This is word overlap, not embeddings, so "glass of water" and "something to drink"
+do not match. Embeddings would need a model or another quota. The store has no user
+ownership: keep it synthetic and do not commit it.
+
+The backend endpoint `POST /api/suggestions/reuse` (refactor branch) only finds exact
+matches. The plan is to move this scoring into `app/services/reuse.py` once that
+branch is on `main`.
+
+### Live check on 2026-10-28
+
+| Request | Provider | Result |
+| --- | --- | --- |
+| Photo + "water", café | `gemini-3.5-flash-lite`, 4.3 s, 406 prompt tokens | 1 sentence with the old "up to three" prompt |
+| Coffee + "I do not want sugar" + photo | `gemini-3.5-flash-lite`, 5.5 s, 413 prompt tokens | 3 sentences, negation kept, after the prompt asked for three |
+| Same "water" request, text only | none | Reused from `accepted.jsonl`, no call |
+| Photo + "water", Ollama first | Ollama "cannot connect" → `gemini-3.1-flash-lite`, 6.2 s | 3 sentences |
+
 ## Offline tests
 
 ```bash
-python -m pytest -q tests/test_gemini_scripts.py
+python -m pytest -q tests/test_gemini_scripts.py tests/test_ai_chain.py tests/test_ai_retrieval.py
 ```
 
 These use a mock transport: no network and no key, so they also run in CI.
