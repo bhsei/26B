@@ -133,6 +133,40 @@ run uses `rpm × minutes`. Do not run checks just before a demo.
 20 requests per day is too few for the evaluation set and demos. Limits are per model,
 so Flash-Lite models have their own quota; check them in AI Studio before testing.
 
+### Survey of every chat model on 2026-10-28
+
+`survey` runs a burst on each model in turn and writes one summary row per model:
+
+```bash
+python -m src.ai.gemini_rate_limit survey --csv ai_data/survey.csv --models gemini-3.5-flash-lite gemma-4-26b-a4b-it
+```
+
+Tested: the 18 Gemini and 2 Gemma models that support `generateContent`. TTS, image,
+music, transcription, robotics, computer-use and agent models were left out. Burst of
+up to 15 requests per model (35 for Gemma).
+
+| Model | Result | Limit in Google's 429 answer | Quota counted as |
+| --- | --- | --- | --- |
+| `gemini-3.5-flash-lite` | 15 of 15 OK, median 1.0 s | none reached | — |
+| `gemini-3.1-flash-lite`, `gemini-3.1-flash-lite-preview` | 15 of 15 OK each, median 3.7–4.0 s | none reached | — |
+| `gemini-flash-lite-latest` | 15 of 15 OK, median 0.9 s | none reached | — |
+| `gemini-3.5-flash`, `gemini-3.6-flash` | 429 per minute | 5 per minute, 20 per day | `gemini-3.6-flash` |
+| `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-flash-latest` | 503 and timeouts, then 429 per day | 20 per day | `gemini-3.8-flash` |
+| `gemini-3-flash-preview` | 429 per minute | 5 per minute | `gemini-3-flash` |
+| `gemma-4-26b-a4b-it` | 15 OK, median 1.1 s, then 429 | 30 per minute | `gemma-4-26b` |
+| `gemma-4-31b-it` | HTTP 500 "Internal error" | — | — |
+| `gemini-3.1-pro-preview`, `gemini-pro-latest`, `gemini-omni-flash-preview`, `gemini-omni-1.1-flash`, `gemini-4-argon` | 429 on the first request, retry in about 22.8 h, no limit value | no free quota | `gemini-3.1-pro`, `gemini-omni-1.1-flash`, `gemini-4-argon` |
+| `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro` | 404 "no longer available to new users" | — | — |
+
+- Several names share one quota: 3.5 Flash with 3.6 Flash, and 3.7 Flash and
+  `gemini-flash-latest` with 3.8 Flash. A chain that lists both gains nothing.
+- No Flash-Lite model returned a 429, so their limits are above 15 per minute. Their
+  daily limit is still unknown; finding it needs a paced run over the day.
+- `gemini-3.7-flash` rejects `thinkingLevel: minimal`; the survey resends without it.
+- By mistake a second copy of the survey ran at the same time, so request counts and
+  latencies are higher than one run alone. The limits come from Google's own 429
+  answers and do not depend on that.
+
 ## Backup models and reuse (standalone)
 
 `suggest.py` runs one request the way the backend should later: reuse first, then
