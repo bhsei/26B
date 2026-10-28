@@ -19,3 +19,7 @@ Thumbs.db
 .idea/
 .vscode/
 
+
+# Local AI prototype data and probe logs (synthetic, not for commits)
+ai_data/
+rate_limit_log.csv
