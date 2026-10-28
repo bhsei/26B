@@ -9,6 +9,8 @@ Run from the repository root:
     python -m src.ai.gemini_rate_limit burst --wait-retry     # then confirm recovery
     python -m src.ai.gemini_rate_limit paced --rpm 5 --minutes 2
     python -m src.ai.gemini_rate_limit burst --csv rate_limit_log.csv
+    python -m src.ai.gemini_rate_limit survey --models gemini-3.5-flash gemma-4-31b-it \
+        --csv ai_data/survey.csv                              # burst on each model
 
 Every request counts against the daily quota (RPD). Each request is tiny
 (a few input tokens, at most 20 output tokens, lowest thinking level), so tokens per minute are not tested.
@@ -31,12 +33,15 @@ from src.ai.gemini_common import (
     thinking_config,
 )
 
+# Models that rejected the thinking setting (Gemma, some Pro models); sent without it.
+NO_THINKING: set[str] = set()
+
 
 def ping_body(model: str) -> dict:
     return build_body(
         [{"text": "Reply with the single word OK."}],
         max_output_tokens=20,
-        thinking=thinking_config(model),
+        thinking=None if model in NO_THINKING else thinking_config(model),
     )
 
 
@@ -151,9 +156,64 @@ def paced(client, args, rec: Recorder) -> int:
     return 0
 
 
+def survey_row(model: str, rec: Recorder, error) -> dict:
+    """One summary line per model: what the burst saw and what the 429 said."""
+    ok = [r["latency_s"] for r in rec.rows if r["status"] == 200]
+    violations = error.violations if error else []
+    return {
+        "model": model,
+        "sent": len(rec.rows),
+        "ok": len(ok),
+        "seconds": rec.rows[-1]["t_s"] if rec.rows else 0,
+        "median_latency_s": sorted(ok)[len(ok) // 2] if ok else "",
+        "stop": "" if error is None else f"HTTP {error.status} {error.api_status}".strip(),
+        "quota_id": ";".join(v.get("quotaId", "") for v in violations),
+        "quota_value": ";".join(str(v.get("quotaValue", "")) for v in violations),
+        "counted_as": ";".join(
+            (v.get("quotaDimensions") or {}).get("model", "") for v in violations
+        ),
+        "retry_delay_s": error.retry_delay_s if error else "",
+        "message": (error.message[:160] if error and not violations else ""),
+    }
+
+
+def survey(client, args) -> int:
+    """Burst on each model in turn; summary CSV in --csv (one row per model)."""
+    summary = []
+    for model in args.models:
+        print(f"\n=== {model}")
+        rec = Recorder(None)
+        error = None
+        for _ in range(args.max_requests):
+            _, error = rec.send(client, model)
+            if error is None:
+                continue
+            if error.status == 503:
+                error = None  # overloaded, not a quota limit
+                continue
+            if error.status == 400 and "hink" in error.message and model not in NO_THINKING:
+                NO_THINKING.add(model)
+                print("  thinking setting rejected; sending without it")
+                error = None
+                continue
+            break
+        if error:
+            print(describe_error(error))
+        summary.append(survey_row(model, rec, error))
+    if args.csv:
+        with open(args.csv, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(summary[0]))
+            writer.writeheader()
+            writer.writerows(summary)
+        print(f"\nSummary written to {args.csv}")
+    print(f"Requests sent: {sum(r['sent'] for r in summary)} (all count against today's quota).")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("mode", choices=["burst", "paced"])
+    parser.add_argument("mode", choices=["burst", "paced", "survey"])
+    parser.add_argument("--models", nargs="+", default=[], help="survey: models to test")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--max-requests", type=int, default=15)
     parser.add_argument("--wait-retry", action="store_true")
@@ -163,6 +223,11 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="read timeout, s")
     args = parser.parse_args()
 
+    if args.mode == "survey":
+        if not args.models:
+            parser.error("survey needs --models")
+        with make_client(load_api_key(), read_timeout=args.timeout) as client:
+            return survey(client, args)
     rec = Recorder(args.csv)
     with make_client(load_api_key(), read_timeout=args.timeout) as client:
         try:
