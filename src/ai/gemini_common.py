@@ -91,7 +91,8 @@ def make_client(
     return httpx.Client(
         base_url=BASE_URL,
         headers={"x-goog-api-key": api_key},
-        timeout=httpx.Timeout(read_timeout, connect=5.0),
+        # 5 s was too short for the TLS handshake through the proxy (2026-10-28).
+        timeout=httpx.Timeout(read_timeout, connect=15.0),
         transport=transport,
     )
 
