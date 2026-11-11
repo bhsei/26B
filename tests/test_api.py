@@ -1,4 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+from threading import Barrier
 from uuid import uuid4
 
 import pytest
@@ -6,12 +8,13 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from PIL import Image
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 from app.config import Settings
 from app.main import create_app
 from app.models import Feedback, GenerationRequest
 from app.providers.base import GeneratedSentences, ProviderUnavailable
+from app.providers.mock import MockProvider
 
 PAYLOAD = {"scene_hint": "A café", "selected_symbols": ["water"], "language": "en"}
 
@@ -58,6 +61,36 @@ def test_feedback_is_idempotent_and_can_be_changed(client, application):
         assert db.get(Feedback, data["request_id"]).suggestion_id is None
 
 
+def test_concurrent_identical_feedback_succeeds_once_in_database(client, application):
+    data = generate(client)
+    url = f"/api/requests/{data['request_id']}/feedback"
+    body = {"action": "accepted", "suggestion_id": data["suggestions"][0]["id"]}
+    ready_to_write = Barrier(2, timeout=5)
+
+    def synchronize_inserts(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO feedback "):
+            ready_to_write.wait()
+
+    # Both requests must reach the first write before either one can insert a row.
+    engine = application.state.engine
+    event.listen(engine, "before_cursor_execute", synchronize_inserts)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            requests = [pool.submit(client.put, url, json=body) for _ in range(2)]
+            responses = [request.result(timeout=10) for request in requests]
+    finally:
+        event.remove(engine, "before_cursor_execute", synchronize_inserts)
+
+    for response in responses:
+        assert response.status_code == 200, response.text
+        assert response.json() == {"request_id": data["request_id"], **body}
+    with application.state.sessions() as db:
+        record = db.scalars(select(Feedback)).one()
+        assert record.request_id == data["request_id"]
+        assert record.suggestion_id == body["suggestion_id"]
+        assert record.action == "accepted"
+
+
 def test_cannot_accept_another_requests_suggestion(client):
     a, b = generate(client), generate(client)
     response = client.put(
@@ -74,6 +107,25 @@ def test_regeneration_excludes_entire_chain(client):
     c = generate(client, parent_request_id=b["request_id"])
     assert c["suggestions"] == []
     assert len(generate(client)["suggestions"]) == 3
+
+
+def test_regeneration_releases_database_connection_before_provider_call(application):
+    connections_in_use = []
+
+    class ObservedProvider(MockProvider):
+        def generate(self, payload, image, excluded):
+            connections_in_use.append(app.state.engine.pool.checkedout())
+            return super().generate(payload, image, excluded)
+
+    app = create_app(
+        Settings(database_url=str(application.state.engine.url), _env_file=None),
+        ObservedProvider(),
+    )
+    with TestClient(app) as client:
+        parent = generate(client)
+        generate(client, parent_request_id=parent["request_id"])
+
+    assert connections_in_use == [0, 0]
 
 
 def test_changed_intent_requires_new_chain(client):
