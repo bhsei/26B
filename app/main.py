@@ -16,7 +16,6 @@ from app.errors import register_error_handlers
 from app.providers.base import SentenceProvider
 from app.providers.mock import MockProvider
 
-
 STATIC = Path(__file__).parent / "static"
 
 
