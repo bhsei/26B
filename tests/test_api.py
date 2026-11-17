@@ -28,7 +28,8 @@ def generate(client, **updates):
 def test_health_ready_and_demo(client):
     assert client.get("/health").json()["status"] == "ok"
     assert client.get("/ready").status_code == 200
-    assert "Demo mode" in client.get("/").text
+    assert "Sign In" in client.get("/").text
+    assert "Demo mode" in client.get("/app").text
     assert client.get("/static/app.js").status_code == 200
 
 

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Login · The Outliers AAC</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <main class="login-container">
+    <header>
+      <p class="eyebrow">B — THE OUTLIERS</p>
+      <h1>Welcome back</h1>
+      <p class="intro">Sign in to access your communication space.</p>
+    </header>
+
+    <form id="login-form" class="login-form">
+      <label for="email">Email address</label>
+      <input id="email" type="email" required placeholder="name@example.com">
+
+      <label for="password">Password</label>
+      <input id="password" type="password" required placeholder="••••••••">
+
+      <div class="login-actions-row">
+        <a href="#forgot" id="forgot-link">Forgot password?</a>
+      </div>
+
+      <button type="submit" id="login-btn">Sign In</button>
+    </form>
+
+    <footer class="login-footer">
+      <p>Don't have an account? <a href="#signup" id="signup-link">Create an account</a></p>
+    </footer>
+  </main>
+  <script>
+  document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    window.location.href = '/app';
+  });
+</script>
+</body>
+</html>

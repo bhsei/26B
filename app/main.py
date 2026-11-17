@@ -42,6 +42,10 @@ def create_app(settings: Settings | None = None, provider: SentenceProvider | No
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     @app.get("/", include_in_schema=False)
+    def login_page():
+        return FileResponse(STATIC / "login.html")
+
+    @app.get("/app", include_in_schema=False)
     def demo():
         return FileResponse(STATIC / "index.html")
 
