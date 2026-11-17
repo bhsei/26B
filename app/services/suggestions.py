@@ -15,9 +15,10 @@ def generate(
     sessions: sessionmaker,
     provider: SentenceProvider,
 ) -> GenerationOutput:
+    excluded = []
+    parent = str(payload.parent_request_id) if payload.parent_request_id else None
+
     with sessions() as db:
-        excluded = []
-        parent = str(payload.parent_request_id) if payload.parent_request_id else None
         current = parent
         depth = 0
         while current:
@@ -42,29 +43,33 @@ def generate(
                 raise AppError(
                     409, "Start a new request after 20 generations.", "GENERATION_LIMIT_REACHED"
                 )
-        start = perf_counter()
-        try:
-            result = provider.generate(payload, image, excluded)
-        except ProviderUnavailable:
-            raise AppError(
-                503, "Generation unavailable. Please try again later.", "PROVIDER_UNAVAILABLE"
-            ) from None
-        except Exception:  # noqa: BLE001 - provider details must not reach clients
-            raise AppError(502, "Generation provider failed.", "PROVIDER_FAILED") from None
-        # Validate even future AI output before storing or displaying it.
-        if (
-            not isinstance(result, GeneratedSentences)
-            or not isinstance(result.sentences, list)
-            or len(result.sentences) > 3
-            or any(
-                not isinstance(s, str) or not s.strip() or len(s) > 300 for s in result.sentences
-            )
-        ):
-            raise AppError(
-                502, "Generation provider returned invalid sentences.", "INVALID_PROVIDER_OUTPUT"
-            )
-        sentences = list(dict.fromkeys(s.strip() for s in result.sentences))
-        sentences = [s for s in sentences if s not in excluded]
+
+    # Release the history query's connection before waiting for the provider.
+    start = perf_counter()
+    try:
+        result = provider.generate(payload, image, excluded)
+    except ProviderUnavailable:
+        raise AppError(
+            503, "Generation unavailable. Please try again later.", "PROVIDER_UNAVAILABLE"
+        ) from None
+    except Exception:  # noqa: BLE001 - provider details must not reach clients
+        raise AppError(502, "Generation provider failed.", "PROVIDER_FAILED") from None
+
+    # Validate even future AI output before storing or displaying it.
+    if (
+        not isinstance(result, GeneratedSentences)
+        or not isinstance(result.sentences, list)
+        or len(result.sentences) > 3
+        or any(not isinstance(s, str) or not s.strip() or len(s) > 300 for s in result.sentences)
+    ):
+        raise AppError(
+            502, "Generation provider returned invalid sentences.", "INVALID_PROVIDER_OUTPUT"
+        )
+
+    sentences = list(dict.fromkeys(s.strip() for s in result.sentences))
+    sentences = [s for s in sentences if s not in excluded]
+
+    with sessions() as db:
         record = GenerationRequest(
             scene_hint=payload.scene_hint,
             intent_text=payload.intent_text,
@@ -82,9 +87,11 @@ def generate(
         ]
         db.add_all(suggestions)
         db.commit()
+
         notice = "Mock templates only. Photos are not analyzed." if provider.name == "mock" else ""
         if not sentences:
             notice += " No new suggestions. In mock mode try water or coffee, or start again."
+
         return GenerationOutput(
             request_id=record.id,
             provider=provider.name,
