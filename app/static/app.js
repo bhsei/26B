@@ -241,12 +241,10 @@ function updateTiles() {
   const container = el('tiles-container');
   container.replaceChildren();
 
-  // 1. On récupère toutes les règles qui correspondent aux mots-clés
   const matchedRules = contextRules.filter(rule => 
     rule.keywords.some(keyword => sceneValue.includes(keyword))
   );
 
-  // 2. On fusionne toutes les tuiles correspondantes
   let tiles = [];
   if (matchedRules.length > 0) {
     matchedRules.forEach(rule => {
@@ -256,7 +254,6 @@ function updateTiles() {
     tiles = defaultTiles;
   }
 
-  // 3. Suppression propre des doublons (sans risque d'erreur)
   const uniqueTiles = [];
   const seenSymbols = new Set();
   tiles.forEach(t => {
@@ -266,7 +263,6 @@ function updateTiles() {
     }
   });
 
-  // 4. Affichage des tuiles dans la grille
   uniqueTiles.forEach((t, index) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -314,4 +310,62 @@ el('close-modal-btn').addEventListener('click', () => {
 document.getElementById('back-to-context').addEventListener('click', () => {
   document.getElementById('tab-speak').classList.remove('active');
   document.getElementById('tab-context').classList.add('active');
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const lexiconBtn = document.getElementById('lexicon-btn');
+    const lexiconModal = document.getElementById('lexicon-modal');
+    const closeLexicon = document.getElementById('close-lexicon');
+    const lexiconList = document.getElementById('lexicon-list');
+
+    if (lexiconBtn && lexiconModal) {
+        lexiconBtn.addEventListener('click', async () => {
+            lexiconModal.style.display = 'flex';
+            lexiconList.innerHTML = "<p>Loading symbol table...</p>";
+
+            try {
+                const sceneInput = document.getElementById('scene');
+                const queryVal = sceneInput ? sceneInput.value : '';
+                
+                const response = await fetch(`/api/lexicon?query=${encodeURIComponent(queryVal)}`);
+                if (!response.ok) throw new Error("Failed to load lexicon");
+
+                const data = await response.json();
+                lexiconList.innerHTML = "";
+
+                if (data.length === 0) {
+                    lexiconList.innerHTML = "<p>No symbols found for this context.</p>";
+                    return;
+                }
+
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'lexicon-item';
+                    div.innerHTML = `
+                        <img src="${item.image}" alt="${item.name}" style="width: 48px; height: 48px; object-fit: contain;">
+                        <div>
+                            <strong>${item.name}</strong>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">${item.description}</p>
+                        </div>
+                    `;
+                    lexiconList.appendChild(div);
+                });
+            } catch (err) {
+                console.error('Error:', err);
+                lexiconList.innerHTML = "<p style='color: red;'>Unable to load the symbol table.</p>";
+            }
+        });
+    }
+
+    if (closeLexicon) {
+        closeLexicon.addEventListener('click', () => {
+            lexiconModal.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('click', (e) => {
+        if (e.target === lexiconModal) {
+            lexiconModal.style.display = 'none';
+        }
+    });
 });

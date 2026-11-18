@@ -343,3 +343,123 @@
 .workspace {
   margin-top: 10px;
 }
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    width: 80%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.close-btn {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #666;
+}
+
+.close-btn:hover {
+    color: #000;
+}
+
+.lexicon-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.lexicon-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.lexicon-item img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.lexicon-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.lexicon-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+}
+
+.scene-input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.scene-input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.scene-input-group input {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.scene-input-group .lexicon-trigger-btn {
+    height: 52px;
+    min-height: 52px;
+    padding: 0 20px;
+    background-color: #245e4f;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 650;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s, transform 0.1s;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.scene-input-group .lexicon-trigger-btn:hover {
+    background-color: #1b483d;
+    transform: translateY(-1px);
+}
+
