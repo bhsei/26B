@@ -65,11 +65,20 @@ def create_lexicon_router(sessions: sessionmaker) -> APIRouter:
     @router.get("/lexicon")
     def get_lexicon(query: str | None = Query(None)):
         query_str = (query or "").lower()
-        
+
+        matched_tiles = []
+        seen_images = set()
+
         for context in contexts_db:
             if any(kw in query_str for kw in context["keywords"]):
-                return context["tiles"]
-        
-        return contexts_db[0]["tiles"]
+                for tile in context["tiles"]:
+                    if tile["image"] not in seen_images:
+                        seen_images.add(tile["image"])
+                        matched_tiles.append(tile)
 
+        if matched_tiles:
+            return matched_tiles
+
+        return contexts_db[0]["tiles"]
+    
     return router

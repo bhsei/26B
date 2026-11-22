@@ -463,3 +463,11 @@
     transform: translateY(-1px);
 }
 
+#retry-save {
+  border-color: #b45309;
+  color: #b45309;
+}
+
+#retry-save:hover:not(:disabled) {
+  background-color: #fffbeb;
+}

@@ -59,10 +59,50 @@ async function generate(parent = null) {
   document.getElementById('tab-context').classList.remove('active');
   document.getElementById('tab-speak').classList.add('active');
 }
-async function saveFeedback(action, suggestionId = null) {
-  return api(`/api/requests/${current.request_id}/feedback`, {method: 'PUT',
-    headers: {'Content-Type':'application/json'}, body: JSON.stringify({action, suggestion_id:suggestionId})});
+let pendingFeedback = null;
+
+function setRetrySave(show, disabled = false) {
+  const btn = el('retry-save');
+  if (!btn) return;
+  btn.hidden = !show;
+  btn.disabled = disabled;
 }
+
+async function putFeedback(requestId, action, suggestionId = null) {
+  return api(`/api/requests/${requestId}/feedback`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, suggestion_id: suggestionId })
+  });
+}
+
+function speakUtterance(text, onSavedState = '') {
+  if (!('speechSynthesis' in window)) {
+    status(onSavedState ? `${onSavedState} Speech is unavailable in this browser.` : 'Speech is unavailable in this browser.');
+    return;
+  }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  const prefix = onSavedState ? `${onSavedState} ` : '';
+  utterance.onerror = () => status(`${prefix}Speech could not play; check your English voice settings.`);
+  utterance.onend = () => status(`${prefix}Finished speaking.`);
+  status(`${prefix}Speaking…`);
+  speechSynthesis.speak(utterance);
+}
+
+async function saveAcceptedInBackground(requestId, suggestionId, spokenText) {
+  pendingFeedback = { requestId, suggestionId, spokenText };
+  setRetrySave(false);
+  try {
+    await putFeedback(requestId, 'accepted', suggestionId);
+    pendingFeedback = null;
+  } catch (error) {
+    status('Spoken, but not saved');
+    setRetrySave(true, false);
+  }
+}
+
 el('context-form').addEventListener('input', () => {
   current = null; el('results').replaceChildren(); lock(false);
   if ('speechSynthesis' in window) speechSynthesis.cancel();
@@ -77,23 +117,35 @@ el('reject').addEventListener('click', async () => {
   try { const parent = current.request_id; await saveFeedback('rejected'); await generate(parent); }
   catch (error) { status(error.message); } finally { lock(false); }
 });
-el('speak').addEventListener('click', async () => {
+
+el('speak').addEventListener('click', () => {
   const item = current?.suggestions.find(s => s.id === selected()?.value);
-  if (!item) return;
-  lock(true);
-  try {
-    await saveFeedback('accepted', item.id);
-    if (!('speechSynthesis' in window)) { status('Choice saved. Speech is unavailable in this browser.'); return; }
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(item.text); utterance.lang = 'en-US';
-    utterance.onerror = () => status('Choice saved. Speech could not play; check your English voice settings.');
-    utterance.onend = () => status('Choice saved. Finished speaking.');
-    status('Choice saved. Speaking…'); speechSynthesis.speak(utterance);
-  } catch (error) { status(error.message); } finally { lock(false); }
+  if (!item || !current?.request_id) return;
+
+  const requestId = current.request_id;
+  speakUtterance(item.text);
+  void saveAcceptedInBackground(requestId, item.id, item.text);
 });
+
 el('stop').addEventListener('click', () => {
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   status('Speech stopped.');
+});
+
+el('retry-save')?.addEventListener('click', async () => {
+  if (!pendingFeedback) return;
+  const { requestId, suggestionId } = pendingFeedback;
+  setRetrySave(true, true);
+  status('Retrying save…');
+  try {
+    await putFeedback(requestId, 'accepted', suggestionId);
+    pendingFeedback = null;
+    setRetrySave(false);
+    status('Saved.');
+  } catch (error) {
+    status('Spoken, but not saved');
+    setRetrySave(true, false);
+  }
 });
 
 document.querySelectorAll('.tile-btn').forEach(btn => {
