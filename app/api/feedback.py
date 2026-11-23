@@ -1,17 +1,17 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import sessionmaker
 
 from app.schemas import FeedbackInput
 from app.services.feedback import save_feedback
 
 
-def create_feedback_router(sessions: sessionmaker) -> APIRouter:
+def create_feedback_router(sessions: sessionmaker, authenticated_write) -> APIRouter:
     router = APIRouter()
 
     @router.put("/api/requests/{request_id}/feedback")
-    def feedback(request_id: UUID, payload: FeedbackInput):
-        return save_feedback(request_id, payload, sessions)
+    def feedback(request_id: UUID, payload: FeedbackInput, user=Depends(authenticated_write)):
+        return save_feedback(request_id, payload, sessions, user_id=user.user_id)
 
     return router

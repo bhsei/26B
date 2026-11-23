@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from conftest import sign_in
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy import event, func, select
@@ -43,6 +44,7 @@ def test_generation_persists_and_survives_restart(client, application):
     # A second app process connects to the same file, not to in-memory state.
     other = create_app(Settings(database_url=str(application.state.engine.url), _env_file=None))
     with TestClient(other) as restarted:
+        sign_in(restarted)
         response = restarted.put(
             f"/api/requests/{data['request_id']}/feedback", json={"action": "rejected"}
         )
@@ -123,6 +125,7 @@ def test_regeneration_releases_database_connection_before_provider_call(applicat
         ObservedProvider(),
     )
     with TestClient(app) as client:
+        sign_in(client)
         parent = generate(client)
         generate(client, parent_request_id=parent["request_id"])
 
@@ -243,6 +246,7 @@ def test_provider_failure_is_safe(application):
         Settings(database_url=str(application.state.engine.url), _env_file=None), Broken()
     )
     with TestClient(app) as client:
+        sign_in(client)
         response = client.post("/api/suggestions", json=PAYLOAD)
         assert response.status_code == 503
         assert "Sensitive" not in response.text
@@ -259,6 +263,7 @@ def test_invalid_provider_output_is_not_saved(application):
         Settings(database_url=str(application.state.engine.url), _env_file=None), Invalid()
     )
     with TestClient(app) as client:
+        sign_in(client)
         assert client.post("/api/suggestions", json=PAYLOAD).status_code == 502
     with application.state.sessions() as db:
         assert db.scalar(select(func.count()).select_from(GenerationRequest)) == 0

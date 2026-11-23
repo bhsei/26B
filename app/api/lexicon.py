@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query
 from sqlalchemy.orm import sessionmaker
 
+
 def create_lexicon_router(sessions: sessionmaker) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["lexicon"])
 

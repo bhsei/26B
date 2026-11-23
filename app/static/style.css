@@ -471,3 +471,12 @@
 #retry-save:hover:not(:disabled) {
   background-color: #fffbeb;
 }
+
+.account-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}

@@ -1,11 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import sessionmaker
 
 from app.reuse_schemas import ReuseInput, ReuseOutput
 from app.services.reuse import find_reusable_suggestions
 
 
-def create_reuse_router(sessions: sessionmaker) -> APIRouter:
+def create_reuse_router(sessions: sessionmaker, authenticated_write) -> APIRouter:
     router = APIRouter()
 
     @router.post(
@@ -20,7 +20,7 @@ def create_reuse_router(sessions: sessionmaker) -> APIRouter:
             "or create a new interaction."
         ),
     )
-    def reusable_suggestions(payload: ReuseInput):
-        return find_reusable_suggestions(payload, sessions)
+    def reusable_suggestions(payload: ReuseInput, user=Depends(authenticated_write)):
+        return find_reusable_suggestions(payload, sessions, user_id=user.user_id)
 
     return router

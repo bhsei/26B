@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import sessionmaker
@@ -11,10 +12,19 @@ from app.schemas import FeedbackInput
 _INSERT_BY_DIALECT = {"sqlite": sqlite_insert, "postgresql": postgres_insert}
 
 
-def save_feedback(request_id: UUID, payload: FeedbackInput, sessions: sessionmaker):
+def save_feedback(
+    request_id: UUID, payload: FeedbackInput, sessions: sessionmaker, *, user_id: str
+):
     key = str(request_id)
     with sessions() as db:
-        if not db.get(GenerationRequest, key):
+        if (
+            db.scalar(
+                select(GenerationRequest.id).where(
+                    GenerationRequest.id == key, GenerationRequest.user_id == user_id
+                )
+            )
+            is None
+        ):
             raise AppError(404, "Request not found.", "REQUEST_NOT_FOUND")
 
         suggestion_id = str(payload.suggestion_id) if payload.suggestion_id else None

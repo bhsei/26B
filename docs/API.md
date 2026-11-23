@@ -245,10 +245,26 @@ Map selected UI symbols to their English labels in `selected_symbols`. Keep any
 frontend-specific symbol IDs separately if needed. Use a configurable API base
 URL for local and deployed environments.
 
-Display generated text with React's normal escaped rendering. Show suggestions
+Display generated text with textContent or createTextNode. Show suggestions
 without speaking them automatically. Start speech only after an explicit user
 confirmation. The backend returns text; speech playback happens in the browser.
 
 `CORS_ORIGINS` must contain the frontend's exact origin, including scheme and
 port. The default allowed origins are `http://localhost:3000` and
 `http://127.0.0.1:3000`. CORS configuration does not provide authentication.
+
+## Authentication and ownership (users update)
+
+The protected suggestions, image, feedback and reuse endpoints now require a
+server session and X-CSRF-Token. Provision accounts with the CLI, then use
+POST /api/auth/login, GET /api/auth/me and POST /api/auth/logout.
+See [AUTH.md](AUTH.md) for the complete contract, errors, cookie settings,
+legacy-history policy, frontend integration and verification.
+
+`POST /api/suggestions/reuse` is documented in [REUSE.md](REUSE.md); its existing
+matching rules now apply only to the authenticated user's requests. Returned
+source IDs refer to historical records and must not be used to save a new reuse
+interaction. Anonymous calls return 401; foreign request IDs return 404.
+
+The client is currently plain HTML/CSS/JavaScript served at `/` and `/app`.
+Continue rendering generated sentences as text, not HTML.

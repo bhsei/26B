@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from conftest import sign_in
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -34,6 +35,7 @@ def seed_request(application):
             "language": "en",
             "image_supplied": False,
             "provider": "test",
+            "user_id": application.state.test_user_id,
             "latency_ms": 1,
         }
         values.update(request_values)
@@ -293,6 +295,7 @@ def test_lookup_has_no_provider_call_and_preserves_all_records(application, seed
         Settings(database_url=str(application.state.engine.url), _env_file=None), provider
     )
     with TestClient(app) as client:
+        sign_in(client)
         assert len(lookup(client)) == 1
         assert len(lookup(client)) == 1
     assert provider.calls == 0
@@ -301,7 +304,9 @@ def test_lookup_has_no_provider_call_and_preserves_all_records(application, seed
 
 def test_service_can_be_used_without_http(application, seed_request):
     source_id, ids = seed_request()
-    result = find_reusable_suggestions(ReuseInput(**PAYLOAD), application.state.sessions)
+    result = find_reusable_suggestions(
+        ReuseInput(**PAYLOAD), application.state.sessions, user_id=application.state.test_user_id
+    )
     assert str(result.suggestions[0].source_request_id) == source_id
     assert str(result.suggestions[0].source_suggestion_id) == ids[0]
 

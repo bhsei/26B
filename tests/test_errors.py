@@ -2,6 +2,7 @@ import json
 from uuid import uuid4
 
 import pytest
+from conftest import sign_in
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -46,7 +47,6 @@ def test_validation_error_keeps_detail_list(client, body):
     ],
     ids=["invalid-image", "oversized-image"],
 )
-
 def test_image_error_codes(client, data, expected_status, expected_code):
     response = client.post(
         "/api/suggestions/image",
@@ -90,6 +90,7 @@ def test_provider_errors_hide_internal_details(application, mode, status, code):
         Settings(database_url=str(application.state.engine.url), _env_file=None), Provider()
     )
     with TestClient(app) as client:
+        sign_in(client)
         response = client.post("/api/suggestions", json=PAYLOAD)
     assert response.status_code == status
     assert response.json()["error_code"] == code

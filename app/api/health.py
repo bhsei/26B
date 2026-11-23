@@ -1,11 +1,20 @@
+from pathlib import Path
+
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from fastapi import APIRouter
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from app.errors import AppError
-from app.models import GenerationRequest
+from app.models import AuthSession, Feedback, GenerationRequest, Suggestion, User
 from app.providers.base import SentenceProvider
+
+
+def expected_heads() -> set[str]:
+    directory = Path(__file__).resolve().parents[2] / "migrations"
+    return set(ScriptDirectory(str(directory)).get_heads())
 
 
 def create_health_router(sessions: sessionmaker, provider: SentenceProvider) -> APIRouter:
@@ -19,12 +28,13 @@ def create_health_router(sessions: sessionmaker, provider: SentenceProvider) -> 
     def ready():
         try:
             with sessions() as db:
-                db.execute(select(GenerationRequest.id).limit(1))
-                revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
-                if revision != "0001":
+                current = set(MigrationContext.configure(db.connection()).get_current_heads())
+                if current != expected_heads():
                     raise AppError(
                         503, "Run: python -m alembic upgrade head", "MIGRATIONS_REQUIRED"
                     )
+                for model in (GenerationRequest, Suggestion, Feedback, User, AuthSession):
+                    db.execute(select(model).limit(1))
         except SQLAlchemyError:
             raise AppError(
                 503, "Database unavailable or migrations missing.", "DATABASE_UNAVAILABLE"

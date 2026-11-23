@@ -10,10 +10,33 @@ function lock(value) {
   el('speak').disabled = value || !selected();
   el('reject').disabled = value || !current || !current.suggestions.length;
 }
-async function api(url, options) {
-  const response = await fetch(url, options);
-  const data = await response.json();
+let csrfToken = null;
+let signedInUser = null;
+const authReady = fetch('/api/auth/me', {credentials: 'same-origin', cache: 'no-store'})
+  .then(async response => {
+    if (!response.ok) throw new Error('Your session has ended. Sign in again.');
+    const data = await response.json();
+    csrfToken = data.csrf_token;
+    signedInUser = data.user;
+    return data;
+  });
+// Attach an early rejection handler; api() still observes the original failure.
+authReady.catch(() => { window.location.assign('/'); });
+async function api(url, options = {}) {
+  await authReady;
+  const headers = new Headers(options.headers || {});
+  const method = (options.method || 'GET').toUpperCase();
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) headers.set('X-CSRF-Token', csrfToken);
+  const response = await fetch(url, {...options, headers, credentials: 'same-origin'});
+  if (response.status === 204) return null;
+  let data;
+  try { data = await response.json(); }
+  catch { throw new Error('The server could not complete the request. Try again.'); }
   if (!response.ok) {
+    if (response.status === 401) throw new Error('Your session has ended. Sign in again.');
+    if (data.error_code === 'CSRF_FAILED') {
+      throw new Error('Your session changed. Reload the page before continuing.');
+    }
     const detail = Array.isArray(data.detail) ? data.detail.map(x => x.msg).join(' ') : data.detail;
     throw new Error(detail || 'Request failed.');
   }
@@ -65,6 +88,7 @@ function setRetrySave(show, disabled = false) {
   const btn = el('retry-save');
   if (!btn) return;
   btn.hidden = !show;
+  btn.style.display = show ? '' : 'none';
   btn.disabled = disabled;
 }
 
@@ -421,3 +445,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+
+// Server session controls; no password or session token is stored in JavaScript.
+authReady.then(() => {
+  const bar = document.createElement('div');
+  bar.className = 'account-controls';
+  const label = document.createElement('span');
+  label.textContent = signedInUser.email;
+  const logoutButton = document.createElement('button');
+  logoutButton.type = 'button';
+  logoutButton.textContent = 'Sign out';
+  logoutButton.addEventListener('click', async () => {
+    logoutButton.disabled = true;
+    try {
+      await api('/api/auth/logout', {method: 'POST'});
+      pendingFeedback = null;
+      current = null;
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      window.location.assign('/');
+    } catch (error) {
+      status(error.message);
+      logoutButton.disabled = false;
+    }
+  });
+  bar.append(label, logoutButton);
+  document.querySelector('main').prepend(bar);
+}).catch(() => {});

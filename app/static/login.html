@@ -16,27 +16,20 @@
 
     <form id="login-form" class="login-form">
       <label for="email">Email address</label>
-      <input id="email" type="email" required placeholder="name@example.com">
+      <input id="email" type="email" autocomplete="username" required placeholder="name@example.com">
 
       <label for="password">Password</label>
-      <input id="password" type="password" required placeholder="••••••••">
+      <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••">
 
-      <div class="login-actions-row">
-        <a href="#forgot" id="forgot-link">Forgot password?</a>
-      </div>
+      <p id="login-status" role="status" aria-live="polite"></p>
 
       <button type="submit" id="login-btn">Sign In</button>
     </form>
 
     <footer class="login-footer">
-      <p>Don't have an account? <a href="#signup" id="signup-link">Create an account</a></p>
+      <p>For an account or password reset, contact the project team.</p>
     </footer>
   </main>
-  <script>
-  document.getElementById('login-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    window.location.href = '/app';
-  });
-</script>
+  <script src="/static/login.js" defer></script>
 </body>
 </html>

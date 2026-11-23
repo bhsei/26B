@@ -8,7 +8,9 @@ MAX_REUSABLE_SUGGESTIONS = 3
 CANDIDATE_BATCH_SIZE = 100
 
 
-def find_reusable_suggestions(payload: ReuseInput, sessions: sessionmaker) -> ReuseOutput:
+def find_reusable_suggestions(
+    payload: ReuseInput, sessions: sessionmaker, *, user_id: str
+) -> ReuseOutput:
     """Read accepted exact matches without calling a provider or writing records."""
     statement = (
         select(
@@ -28,6 +30,7 @@ def find_reusable_suggestions(payload: ReuseInput, sessions: sessionmaker) -> Re
         )
         .where(
             Feedback.action == "accepted",
+            GenerationRequest.user_id == user_id,
             GenerationRequest.language == payload.language,
             GenerationRequest.image_supplied.is_(False),
         )

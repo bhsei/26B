@@ -201,3 +201,12 @@ separate contract with the AI component.
 The current schema has no user ownership field. Initial retrieval should be
 tested locally with synthetic data. User-specific retrieval requires an ownership
 model and authorization rules before working with personal histories.
+
+## Users migration 0002
+
+The current schema also includes users and auth_sessions, and an indexed nullable
+owner FK generation_requests.user_id. New API requests always have a verified
+owner. Suggestions and feedback inherit ownership through their request.
+Old rows remain unowned and inaccessible to user routes; they are not deleted or
+automatically assigned. See [AUTH.md](AUTH.md) for fields, migration behavior,
+account administration and session expiry.

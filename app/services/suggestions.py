@@ -14,6 +14,8 @@ def generate(
     image: bytes | None,
     sessions: sessionmaker,
     provider: SentenceProvider,
+    *,
+    user_id: str,
 ) -> GenerationOutput:
     excluded = []
     parent = str(payload.parent_request_id) if payload.parent_request_id else None
@@ -22,7 +24,11 @@ def generate(
         current = parent
         depth = 0
         while current:
-            previous = db.get(GenerationRequest, current)
+            previous = db.scalar(
+                select(GenerationRequest).where(
+                    GenerationRequest.id == current, GenerationRequest.user_id == user_id
+                )
+            )
             if previous is None:
                 raise AppError(404, "Previous request not found.", "REQUEST_NOT_FOUND")
             # A chain belongs to the same user intention. New inputs start a new chain.
@@ -71,6 +77,7 @@ def generate(
 
     with sessions() as db:
         record = GenerationRequest(
+            user_id=user_id,
             scene_hint=payload.scene_hint,
             intent_text=payload.intent_text,
             selected_symbols=payload.selected_symbols,

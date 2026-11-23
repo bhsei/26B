@@ -111,3 +111,10 @@ response validation errors retain FastAPI's default handling and may not include
 
 `DATABASE_UNAVAILABLE` describes a readiness check failure. It is not a global
 handler for all database exceptions.
+
+## Authentication errors
+
+The user update adds AUTHENTICATION_REQUIRED, SESSION_EXPIRED and
+INVALID_CREDENTIALS (401), CSRF_FAILED (403) and LOGIN_RATE_LIMITED (429).
+Foreign and unowned request IDs reuse REQUEST_NOT_FOUND (404).
+See [AUTH.md](AUTH.md) for conditions and the API contract.
