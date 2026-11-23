@@ -137,9 +137,22 @@ el('context-form').addEventListener('submit', async event => {
   try { await generate(); } catch (error) { status(error.message); } finally { lock(false); }
 });
 el('reject').addEventListener('click', async () => {
-  lock(true); status('Looking for different options…');
-  try { const parent = current.request_id; await saveFeedback('rejected'); await generate(parent); }
-  catch (error) { status(error.message); } finally { lock(false); }
+  if (busy || !current?.request_id) return;
+
+  const parent = current.request_id;
+  lock(true);
+
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  status('Looking for different options…');
+
+  try {
+    await putFeedback(parent, 'rejected');
+    await generate(parent);
+  } catch (error) {
+    status(error.message);
+  } finally {
+    lock(false);
+  }
 });
 
 el('speak').addEventListener('click', () => {
