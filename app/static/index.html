@@ -28,7 +28,10 @@
       
       <form id="context-form">
         <label for="scene">Where are you?</label>
-        <input id="scene" maxlength="500" value="A café" placeholder="Describe the scene">
+        <div class="scene-input-group">
+          <input id="scene" maxlength="500" value="" placeholder="Describe the scene">
+          <button id="lexicon-btn" type="button" class="lexicon-trigger-btn" title="Symbol table">📖 Symbol Table</button>
+        </div>
         
         <fieldset>
           <legend>Select Cboard tiles</legend>
@@ -82,6 +85,7 @@
         <button id="speak" type="button" disabled>Confirm and speak</button>
         <button id="reject" type="button" class="secondary" disabled>Reject and try again</button>
         <button id="stop" type="button" class="secondary">Stop speaking</button>
+        <button id="retry-save" type="button" class="secondary" style="display: none;">Retry save</button>
       </div>
       
       <p id="status" role="status" aria-live="polite">Ready when you are.</p>
@@ -96,6 +100,16 @@
     <p>This prototype helps you generate context-aware phrases. Select your location, click the available tiles, and click "Suggest sentences" to speak.</p>
     <button type="button" id="close-modal-btn">Got it</button>
   </div>
+</div>
+
+<div id="lexicon-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span id="close-lexicon" class="close-btn">&times;</span>
+        <h2>Symbol Table</h2>
+        <p class="modal-subtitle">Find the meaning of each symbol</p>
+        <div id="lexicon-list" class="lexicon-grid">
+        </div>
+    </div>
 </div>
 </body>
 </html>

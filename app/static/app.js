@@ -59,10 +59,50 @@ async function generate(parent = null) {
   document.getElementById('tab-context').classList.remove('active');
   document.getElementById('tab-speak').classList.add('active');
 }
-async function saveFeedback(action, suggestionId = null) {
-  return api(`/api/requests/${current.request_id}/feedback`, {method: 'PUT',
-    headers: {'Content-Type':'application/json'}, body: JSON.stringify({action, suggestion_id:suggestionId})});
+let pendingFeedback = null;
+
+function setRetrySave(show, disabled = false) {
+  const btn = el('retry-save');
+  if (!btn) return;
+  btn.hidden = !show;
+  btn.disabled = disabled;
 }
+
+async function putFeedback(requestId, action, suggestionId = null) {
+  return api(`/api/requests/${requestId}/feedback`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, suggestion_id: suggestionId })
+  });
+}
+
+function speakUtterance(text, onSavedState = '') {
+  if (!('speechSynthesis' in window)) {
+    status(onSavedState ? `${onSavedState} Speech is unavailable in this browser.` : 'Speech is unavailable in this browser.');
+    return;
+  }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  const prefix = onSavedState ? `${onSavedState} ` : '';
+  utterance.onerror = () => status(`${prefix}Speech could not play; check your English voice settings.`);
+  utterance.onend = () => status(`${prefix}Finished speaking.`);
+  status(`${prefix}Speaking…`);
+  speechSynthesis.speak(utterance);
+}
+
+async function saveAcceptedInBackground(requestId, suggestionId, spokenText) {
+  pendingFeedback = { requestId, suggestionId, spokenText };
+  setRetrySave(false);
+  try {
+    await putFeedback(requestId, 'accepted', suggestionId);
+    pendingFeedback = null;
+  } catch (error) {
+    status('Spoken, but not saved');
+    setRetrySave(true, false);
+  }
+}
+
 el('context-form').addEventListener('input', () => {
   current = null; el('results').replaceChildren(); lock(false);
   if ('speechSynthesis' in window) speechSynthesis.cancel();
@@ -77,23 +117,35 @@ el('reject').addEventListener('click', async () => {
   try { const parent = current.request_id; await saveFeedback('rejected'); await generate(parent); }
   catch (error) { status(error.message); } finally { lock(false); }
 });
-el('speak').addEventListener('click', async () => {
+
+el('speak').addEventListener('click', () => {
   const item = current?.suggestions.find(s => s.id === selected()?.value);
-  if (!item) return;
-  lock(true);
-  try {
-    await saveFeedback('accepted', item.id);
-    if (!('speechSynthesis' in window)) { status('Choice saved. Speech is unavailable in this browser.'); return; }
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(item.text); utterance.lang = 'en-US';
-    utterance.onerror = () => status('Choice saved. Speech could not play; check your English voice settings.');
-    utterance.onend = () => status('Choice saved. Finished speaking.');
-    status('Choice saved. Speaking…'); speechSynthesis.speak(utterance);
-  } catch (error) { status(error.message); } finally { lock(false); }
+  if (!item || !current?.request_id) return;
+
+  const requestId = current.request_id;
+  speakUtterance(item.text);
+  void saveAcceptedInBackground(requestId, item.id, item.text);
 });
+
 el('stop').addEventListener('click', () => {
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   status('Speech stopped.');
+});
+
+el('retry-save')?.addEventListener('click', async () => {
+  if (!pendingFeedback) return;
+  const { requestId, suggestionId } = pendingFeedback;
+  setRetrySave(true, true);
+  status('Retrying save…');
+  try {
+    await putFeedback(requestId, 'accepted', suggestionId);
+    pendingFeedback = null;
+    setRetrySave(false);
+    status('Saved.');
+  } catch (error) {
+    status('Spoken, but not saved');
+    setRetrySave(true, false);
+  }
 });
 
 document.querySelectorAll('.tile-btn').forEach(btn => {
@@ -241,12 +293,10 @@ function updateTiles() {
   const container = el('tiles-container');
   container.replaceChildren();
 
-  // 1. On récupère toutes les règles qui correspondent aux mots-clés
   const matchedRules = contextRules.filter(rule => 
     rule.keywords.some(keyword => sceneValue.includes(keyword))
   );
 
-  // 2. On fusionne toutes les tuiles correspondantes
   let tiles = [];
   if (matchedRules.length > 0) {
     matchedRules.forEach(rule => {
@@ -256,7 +306,6 @@ function updateTiles() {
     tiles = defaultTiles;
   }
 
-  // 3. Suppression propre des doublons (sans risque d'erreur)
   const uniqueTiles = [];
   const seenSymbols = new Set();
   tiles.forEach(t => {
@@ -266,7 +315,6 @@ function updateTiles() {
     }
   });
 
-  // 4. Affichage des tuiles dans la grille
   uniqueTiles.forEach((t, index) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -314,4 +362,62 @@ el('close-modal-btn').addEventListener('click', () => {
 document.getElementById('back-to-context').addEventListener('click', () => {
   document.getElementById('tab-speak').classList.remove('active');
   document.getElementById('tab-context').classList.add('active');
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const lexiconBtn = document.getElementById('lexicon-btn');
+    const lexiconModal = document.getElementById('lexicon-modal');
+    const closeLexicon = document.getElementById('close-lexicon');
+    const lexiconList = document.getElementById('lexicon-list');
+
+    if (lexiconBtn && lexiconModal) {
+        lexiconBtn.addEventListener('click', async () => {
+            lexiconModal.style.display = 'flex';
+            lexiconList.innerHTML = "<p>Loading symbol table...</p>";
+
+            try {
+                const sceneInput = document.getElementById('scene');
+                const queryVal = sceneInput ? sceneInput.value : '';
+                
+                const response = await fetch(`/api/lexicon?query=${encodeURIComponent(queryVal)}`);
+                if (!response.ok) throw new Error("Failed to load lexicon");
+
+                const data = await response.json();
+                lexiconList.innerHTML = "";
+
+                if (data.length === 0) {
+                    lexiconList.innerHTML = "<p>No symbols found for this context.</p>";
+                    return;
+                }
+
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'lexicon-item';
+                    div.innerHTML = `
+                        <img src="${item.image}" alt="${item.name}" style="width: 48px; height: 48px; object-fit: contain;">
+                        <div>
+                            <strong>${item.name}</strong>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">${item.description}</p>
+                        </div>
+                    `;
+                    lexiconList.appendChild(div);
+                });
+            } catch (err) {
+                console.error('Error:', err);
+                lexiconList.innerHTML = "<p style='color: red;'>Unable to load the symbol table.</p>";
+            }
+        });
+    }
+
+    if (closeLexicon) {
+        closeLexicon.addEventListener('click', () => {
+            lexiconModal.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('click', (e) => {
+        if (e.target === lexiconModal) {
+            lexiconModal.style.display = 'none';
+        }
+    });
 });

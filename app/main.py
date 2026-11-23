@@ -15,6 +15,7 @@ from app.database import make_database
 from app.errors import register_error_handlers
 from app.providers.base import SentenceProvider
 from app.providers.mock import MockProvider
+from app.api.lexicon import create_lexicon_router
 
 STATIC = Path(__file__).parent / "static"
 
@@ -53,6 +54,7 @@ def create_app(settings: Settings | None = None, provider: SentenceProvider | No
     app.include_router(create_suggestions_router(settings, sessions, provider))
     app.include_router(create_feedback_router(sessions))
     app.include_router(create_reuse_router(sessions))
+    app.include_router(create_lexicon_router(sessions))
 
     return app
 
