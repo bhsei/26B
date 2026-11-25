@@ -26,7 +26,7 @@
 | 0.1 | 11 Nov 2026 | First SAD: six views, 25 diagrams, 11 quality attribute scenarios, 16 approaches, mapping of 49 requirements, 26 known inconsistencies, 14 open decisions | [SAD.md](SAD.md) |
 | 0.2 | 17 Nov 2026 | Review draft built from SRS v0.5 on the SEI template: four viewpoints and the seven course diagrams (use case, activity, sequence, DFD, ERD, class, deployment). Labelled "review draft v1.0" in the PDF | [SAD_v0.2.md](SAD_v0.2.md) (transcription) |
 | 0.3 | 18 Nov 2026 | Merge. Structure and seven diagrams of v0.2, corrected against the code on `main`; selected views and tables of v0.1 that are still true for the code; speak-first adopted as the design | [SAD_v0.3.md](SAD_v0.3.md) |
-| 0.4 | 25 Nov 2026 | Views updated to `ce3627b` (symbol table, speak-first order, Reject regression, red CI); new AI provider view (3.6, Figures 23–26, Tables 19–24); AI statements elsewhere corrected against the code; decisions D-15 and D-16 from the SRS review replies; INC-27 to INC-38; work outside `main` (4.5, Table 27a); work items W11-06 to W11-08 | this file |
+| 0.4 | 25 Nov 2026 | Views updated to `ce3627b` (symbol table, speak-first order, Reject regression, red CI); new AI provider view (3.6, Figures 23–26, Tables 19–24); AI statements elsewhere corrected against the code; authentication of `refactor-backend` shown dashed in Figures 2, 8, 14, 15 and 17 (team review, 25 Nov); decisions D-15 and D-16 from the SRS review replies; INC-27 to INC-38; work outside `main` (4.5, Table 27a); work items W11-06 to W11-08 | this file |
 
 ### How this version was made
 
@@ -95,7 +95,7 @@ The architecture boundary includes:
 - optional **photo cleaning** before any provider use;
 - **browser speech** (Web Speech API).
 
-PostgreSQL, Docker Compose deployment, public hosting, authentication and production security controls are planned or not verified. Low-level styling, individual statements and test internals are out of scope unless they affect an interface or a quality attribute.
+PostgreSQL, Docker Compose deployment, public hosting and production security controls are planned or not verified. Authentication (accounts, server sessions, CSRF check, ownership of requests) is built on the branch `refactor-backend`, not merged (D-06, W11-06); the views show it dashed and say so in the captions. Low-level styling, individual statements and test internals are out of scope unless they affect an interface or a quality attribute.
 
 ### 1.3 How the SAD Is Organised
 
@@ -325,7 +325,7 @@ The architecture is a **web client / API separation inside one deployable backen
 | External interfaces | Web client pages, FastAPI routers, file input, Web Speech API | Contract and browser path built; device-level speech check open |
 | Functional workflow | Context capture, suggestions, feedback, regeneration, reuse endpoint | Built with the mock provider; client does not call reuse yet (D-04); speak-first order in `app.js` since `ce3627b`, background save is one attempt with no automatic retry or timeout; Reject and try again is broken on `main` (INC-29) |
 | Quality and reliability | Validation, error codes, health/readiness, atomic feedback | Built; production performance and availability need evidence |
-| Security and privacy | Photo cleaning, no photo storage, planned authentication and limits | Photo path built; login is interface only; limits planned |
+| Security and privacy | Photo cleaning, no photo storage, authentication and limits | Photo path built; on `main` login is interface only, authentication built on the branch `refactor-backend`, not merged; limits planned |
 | AI / ML | `SentenceProvider` port; chain, registry and evaluation prototype (3.6) | Port built; chain adapter, registry and evaluation tools local, not committed; chain not selectable by configuration (INC-17); evaluation runs not rated |
 | Deployment | Local host, SQLite, CI; planned Compose and PostgreSQL | CI built, red on `main` since 18 Nov (INC-27); Compose and PostgreSQL planned |
 
@@ -380,7 +380,7 @@ What the AAC user can do, in which order, and where speech is allowed. Based on 
 | --- | --- | --- |
 | AAC user | Gives place, tiles, optional intention and photo; requests, reviews, rejects or confirms; stops speech | Primary actor |
 | Developer / operator | Configures the services; checks health and readiness | Operational actor |
-| Sign in | Login form at `/`; goes to `/app` | Interface only, no credential check (REQ-SEC-005 planned) |
+| Sign in / sign out | Login form at `/`; goes to `/app` | On `main`: interface only, no credential check. On `refactor-backend` (`19bdfac`): email and password checked (Argon2), server session in an HttpOnly cookie, Sign out button, `/app` redirects to `/` without a session (REQ-SEC-005), not merged |
 | Provide context | Place text, symbol tiles, intention text | Built |
 | Attach optional photo | Camera, gallery or drag and drop; preview and remove | Built; cleaned on the server |
 | Request suggestions | Up to three English candidates | Built with the mock provider |
@@ -390,7 +390,7 @@ What the AAC user can do, in which order, and where speech is allowed. Based on 
 | Stop speaking | Cancels speech | Built |
 | Health and readiness | `/health`, `/ready` | Built |
 
-**Design explanation.** The AAC user is the central actor: the product keeps the user's agency. The system never speaks a sentence on its own. The operator works on configuration and status, not on the communication request. The login page exists but checks no credential, so it must not be read as access control.
+**Design explanation.** The AAC user is the central actor: the product keeps the user's agency. The system never speaks a sentence on its own. The operator works on configuration and status, not on the communication request. On `main` the login page checks no credential, so it must not be read as access control; the branch `refactor-backend` adds the check, sessions and ownership of requests (D-06).
 
 *Figure 2. Use case diagram*
 
@@ -400,7 +400,7 @@ flowchart LR
     OPS(("Developer /<br/>operator"))
     subgraph SYS["Context-aware AAC Board"]
         direction TB
-        UC0(["Sign in<br/>(interface only)"])
+        UC0(["Sign in / sign out<br/>(checked on branch, D-06)"])
         UC1(["Provide context<br/>(place / tiles / intention)"])
         UC2(["Attach optional photo"])
         UC3(["Request sentence suggestions"])
@@ -566,7 +566,7 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> Login: GET /
-    Login --> Context: submit (no credential check, goes to /app)
+    Login --> Context: submit (no check on main, POST /api/auth/login on branch)
     state Context {
         [*] --> Editing
         Editing --> Editing: type place (tiles rebuilt), toggle tile, type intention, add or remove photo
@@ -649,7 +649,7 @@ flowchart LR
 
 #### 3.2.2 Runtime components and connectors
 
-*Figure 8. Runtime components and connectors*
+*Figure 8. Runtime components and connectors (dashed: prototype, planned, or on the branch `refactor-backend`)*
 
 ```mermaid
 flowchart LR
@@ -675,6 +675,8 @@ flowchart LR
         FS["Feedback service"]
         RS["Reuse service"]
         EH["Error handlers<br/>AppError to JSON"]
+        AUTHR["Auth router, branch<br/>POST /api/auth/login, /logout<br/>GET /api/auth/me"]
+        AUTHD["Auth dependencies, branch<br/>session cookie, CSRF header,<br/>request owner"]
         PROV{{"SentenceProvider<br/>MockProvider now"}}
         CHAIN["ChainProvider + ProviderChain<br/>prototype"]
         SR --> IMG
@@ -684,6 +686,8 @@ flowchart LR
         SS -- "generate(payload, image, excluded)" --> PROV
         PROV -.-> CHAIN
         SR & FR & RR & HR -- "errors" --> EH
+        AUTHR -.-> AUTHD
+        SR & FR & RR -. "current user, CSRF" .-> AUTHD
     end
 
     DB[("Database<br/>SQLite now, PostgreSQL planned")]
@@ -699,6 +703,10 @@ flowchart LR
     RS -- "SQL, read only" --> DB
     HR -- "SQL, read only" --> DB
     CHAIN -. "HTTPS, key in header" .-> GEM
+    LP -. "HTTP JSON, branch" .-> AUTHR
+    AUTHD -. "SQL: users, auth_sessions" .-> DB
+    classDef branch stroke-dasharray: 5 5
+    class AUTHR,AUTHD branch
 ```
 
 The lexicon router has no database connector: its tiles are a constant list in `app/api/lexicon.py`.
@@ -902,7 +910,7 @@ Which code unit does what, and who may call whom. This view helps developers fin
 
 #### 3.3.1 Decomposition
 
-*Figure 14. Decomposition of the backend and the web client*
+*Figure 14. Decomposition of the backend and the web client (dashed: on the branch `refactor-backend`, not merged)*
 
 ```mermaid
 flowchart TB
@@ -915,6 +923,7 @@ flowchart TB
         SCH["schemas.py, reuse_schemas.py"]
         MOD["models.py · ORM tables"]
         IMG["images.py · prepare_image"]
+        AUTHM["auth.py, auth_schemas.py, manage_users.py<br/>auth dependencies, user command"]
         subgraph API["api/ (routers)"]
             direction LR
             RH["health.py"]
@@ -922,12 +931,14 @@ flowchart TB
             RF["feedback.py"]
             RR["reuse.py"]
             RLX["lexicon.py<br/>static tile data"]
+            RA["auth.py<br/>login, logout, me"]
         end
         subgraph SRV["services/"]
             direction LR
             SS["suggestions.py"]
             SF["feedback.py"]
             SR["reuse.py"]
+            SA["auth.py<br/>Argon2, sessions"]
         end
         subgraph PRV["providers/"]
             direction LR
@@ -939,6 +950,7 @@ flowchart TB
     subgraph WEB["app/static/ (web client, owner Thibaut)"]
         direction LR
         LOGIN["login.html"]
+        LJS["login.js"]
         INDEX["index.html · tabs, help dialog, symbol table window"]
         JS["app.js · tiles, photo, API calls, speech,<br/>symbol table, retry save"]
         CSS["style.css · symbols/*.png"]
@@ -954,14 +966,16 @@ flowchart TB
         GQ["gemini_quickstart.py, gemini_rate_limit.py · scripts"]
         EV["evaluate.py, score.py, eval_photos.py,<br/>rating_app.html · evaluation, local"]
     end
-    MIG["migrations/ · Alembic 0001"]
+    MIG["migrations/ · Alembic 0001<br/>0002 on branch"]
     CI[".github/workflows/tests.yml<br/>owner Abid"]
     PC -.-> CH
+    classDef branch stroke-dasharray: 5 5
+    class AUTHM,RA,SA,LJS branch
 ```
 
 #### 3.3.2 Layers and uses
 
-*Figure 15. Layers and uses of the backend*
+*Figure 15. Layers and uses of the backend (dashed: prototype, or on the branch `refactor-backend`)*
 
 ```mermaid
 flowchart TB
@@ -975,6 +989,8 @@ flowchart TB
         RF["api/feedback.py"]
         RR["api/reuse.py"]
         RLX["api/lexicon.py<br/>static data"]
+        RA["api/auth.py"]
+        AD["auth.py<br/>current user, CSRF"]
     end
     subgraph L2["Service layer"]
         direction LR
@@ -982,6 +998,7 @@ flowchart TB
         SF["services/feedback.py"]
         SR["services/reuse.py"]
         IMG["images.py"]
+        SA["services/auth.py"]
     end
     subgraph L3["Data and provider ports"]
         direction LR
@@ -1009,6 +1026,13 @@ flowchart TB
     SR --> MOD
     PM -- "implements" --> PB
     PC -- "implements" --> PB
+    MAIN -.-> RA
+    RA -.-> SA
+    RS & RF & RR -.-> AD
+    AD -.-> SA
+    SA -.-> MOD
+    classDef branch stroke-dasharray: 5 5
+    class RA,AD,SA branch
 ```
 
 Shared by all layers: `config.py`, `errors.py`, `schemas.py`, `reuse_schemas.py`. `api/lexicon.py` uses no service or model: it receives the session factory but returns a constant tile list.
@@ -1080,9 +1104,9 @@ classDiagram
 
 #### 3.4.1 Entity–relationship diagram
 
-The database has three tables, created by Alembic migration `0001` and checked against `app/models.py` by `alembic check` (local run of 25 Nov; the CI step has not run since 18 Nov, INC-27).
+On `main` the database has three tables, created by Alembic migration `0001` and checked against `app/models.py` by `alembic check` (local run of 25 Nov; the CI step has not run since 18 Nov, INC-27). Migration `0002` on the branch `refactor-backend`, not merged, adds `users`, `auth_sessions` and the column `generation_requests.user_id`: five application tables. A `NULL` owner marks only requests made before authentication; every new API request has an owner, and feedback, regeneration and reuse find only the requests of the same user.
 
-*Figure 17. ERD of the database (migration 0001)*
+*Figure 17. ERD of the database (migration 0001 on `main`; `USERS`, `AUTH_SESSIONS` and `user_id` from migration 0002 on the branch `refactor-backend`, not merged)*
 
 ```mermaid
 erDiagram
@@ -1097,6 +1121,7 @@ erDiagram
         string provider "for example mock"
         int latency_ms "provider call time"
         string parent_request_id FK "previous request, nullable"
+        string user_id FK "0002, branch; owner, NULL only before auth"
     }
     SUGGESTIONS {
         string id PK "UUID"
@@ -1114,6 +1139,23 @@ erDiagram
     GENERATION_REQUESTS ||--o| FEEDBACK : "has current decision"
     SUGGESTIONS |o--o| FEEDBACK : "is selected by"
     GENERATION_REQUESTS |o--o{ GENERATION_REQUESTS : "is parent of"
+    USERS {
+        string id PK "UUID; 0002, branch"
+        string email UK "≤ 254 characters"
+        string password_hash "Argon2"
+        boolean is_active
+        datetime created_at "UTC"
+    }
+    AUTH_SESSIONS {
+        string token_hash PK "hash of the cookie token; 0002, branch"
+        string user_id FK "indexed"
+        string csrf_token "sent back in X-CSRF-Token"
+        datetime created_at "UTC"
+        datetime last_seen_at "UTC"
+        datetime expires_at "indexed"
+    }
+    USERS ||--o{ AUTH_SESSIONS : "has"
+    USERS |o--o{ GENERATION_REQUESTS : "owns"
 ```
 
 *Table 15. Logical records of v0.2 and where they are stored*
@@ -1279,7 +1321,7 @@ flowchart TB
         subgraph COMPOSE["Docker Compose stack"]
             direction TB
             PROXY["Reverse proxy<br/>HTTPS, body limit, timeouts, rate limits"]
-            AUTH["Authentication and sessions<br/>planned, D-06"]
+            AUTH["Authentication and sessions<br/>built on branch, D-06"]
             subgraph APPC["App container: Python 3.12"]
                 MIGR["one-off: alembic upgrade head"]
                 API["uvicorn app.main:app<br/>internal network only"]
@@ -1720,7 +1762,7 @@ The views above describe `main` at `ce3627b`. The work below is not on `main`.
 
 | Work | Where | Effect on the views when merged |
 | --- | --- | --- |
-| Users, sessions, CSRF check, request ownership, migration `0002`, `AUTH_*` settings, five auth error codes (`AUTHENTICATION_REQUIRED`, `CSRF_FAILED`, `INVALID_CREDENTIALS`, `LOGIN_RATE_LIMITED`, `SESSION_EXPIRED`), `argon2-cffi` dependency, Reject fix, Retry save button made visible, speech cancelled on Reject, ruff fix | Branch `origin/refactor-backend`, commits `e2ea94e`, `19bdfac`, `68ebf46` (24 Nov), not merged; CI green on `19bdfac` and `68ebf46` | D-06; INC-26 (Reject cancels speech), INC-27, INC-29, INC-30; INC-13 in part (`CSRF_FAILED` only); ERD and 3.4.1 (tables `users`, `auth_sessions`, column `generation_requests.user_id`), Figure 2 and Table 11 (Sign in), Appendix B (five codes), Appendix C (`AUTH_*`) |
+| Users, sessions, CSRF check, request ownership, migration `0002`, `AUTH_*` settings, five auth error codes (`AUTHENTICATION_REQUIRED`, `CSRF_FAILED`, `INVALID_CREDENTIALS`, `LOGIN_RATE_LIMITED`, `SESSION_EXPIRED`), `argon2-cffi` dependency, Reject fix, Retry save button made visible, speech cancelled on Reject, ruff fix | Branch `origin/refactor-backend`, commits `e2ea94e`, `19bdfac`, `68ebf46` (24 Nov), not merged; CI green on `19bdfac` and `68ebf46` | Already shown dashed: Figures 2, 8, 14, 15, 17 and Table 11 (25 Nov). When merged: D-06 decided; INC-26 (Reject cancels speech), INC-27, INC-29, INC-30 closed; INC-13 in part (`CSRF_FAILED` only); the dashed elements become solid; Appendix B (five codes), Appendix C (`AUTH_*`) |
 | `ChainProvider` adapter, registry with nine OpenAI-style vendors, 20 s and 10 s timing, text-only and describe-then-write wrappers, evaluation tools, 82 tests | AI owner's working tree: uncommitted and untracked files in `app/providers/`, `src/ai/` and `tests/` | Section 3.6 describes this version (Table 19); W11-07, INC-35 |
 
 ---
@@ -1876,7 +1918,7 @@ The views above describe `main` at `ce3627b`. The work below is not on `main`.
 | D-03 | Provider order and pass thresholds | After the core evaluation | Jiahui | W10 | Open: runs of seven specifications exist, not rated (A5, Figure 26) → W11-08 |
 | D-04 | Reuse in the flow | Automatic before every text request / user choice; how a reused sentence is recorded | Veronika, Jiahui, Thibaut | W10 | To confirm at the review |
 | D-05 | Hosting and availability target | To be proposed | Abid | W10 | To confirm at the review |
-| D-06 | Accounts and ownership | Out of scope for Increment 1 / minimal accounts with `user_id` | Abid, Veronika | W10 | Implementation on `refactor-backend` (`19bdfac`), not merged |
+| D-06 | Accounts and ownership | Out of scope for Increment 1 / minimal accounts with `user_id` | Abid, Veronika | W10 | Implementation on `refactor-backend` (`19bdfac`), not merged; shown dashed in Figures 2, 8, 14, 15 and 17 |
 | D-07 | Demo network | Network outside mainland China / second vendor reachable in China | Jiahui, Abid | W11 | Open; the reply to Team A finding 4 places the demo in China, where Gemini needs a proxy; the vendors reachable in China (Z.ai, BigModel, SiliconFlow) have not been called yet; all four entries of the proposed order use the Gemini API, one key and one network path, so a network block removes the whole fallback |
 | D-08 | Consent and retention | Policy text, deletion endpoint, retention period | All | W12 | Open |
 | D-09 | Interest discovery | Not adopted / open choice / with alternatives | All | W10 | To confirm at the review |
